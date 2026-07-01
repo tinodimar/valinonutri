@@ -215,6 +215,27 @@
   .recipe td{padding:5px 6px;border-bottom:1px dashed var(--line)}
   .recipe tr:last-child td{border-bottom:none}
   .recipe .prep{font-size:.8rem;color:var(--muted);margin-top:8px;line-height:1.45}
+
+  /* chef agent */
+  .chatBox{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;min-height:380px;max-height:60vh}
+  .chatMsgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .bubble{max-width:85%;padding:10px 13px;border-radius:14px;font-size:.9rem;line-height:1.45}
+  .bubble.user{align-self:flex-end;background:var(--ink);color:#fff;border-bottom-right-radius:4px}
+  .bubble.bot{align-self:flex-start;background:var(--sage-soft);border-bottom-left-radius:4px}
+  .bubble.thinking{align-self:flex-start;color:var(--muted);font-style:italic;background:transparent;padding:4px 2px}
+  .proposal{align-self:stretch;border:1.5px dashed var(--sage);border-radius:12px;padding:12px;background:#FBFCF8}
+  .proposal .pTitle{font-weight:700;font-size:.88rem;margin-bottom:4px}
+  .proposal .pMeta{font-size:.75rem;color:var(--muted);margin-bottom:8px}
+  .proposal .pIng{font-size:.8rem;color:var(--muted);line-height:1.5;margin-bottom:10px}
+  .proposal .btn{width:100%}
+  .proposal.applied{border-style:solid;opacity:.65}
+  .chatInput{display:flex;gap:8px;padding:10px;border-top:1.5px solid var(--line)}
+  .chatInput input{flex:1;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);font-family:'Karla';font-size:.95rem}
+  .chatInput input:focus{outline:2px solid var(--sage)}
+  .chipRow{display:flex;gap:6px;flex-wrap:wrap;padding:0 14px 12px}
+  .sugChip{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer}
+  .sugChip:hover{border-color:var(--sage);color:var(--sage)}
+  .modBadge{font-size:.65rem;font-weight:700;background:#EAE3F2;color:#6B5CA5;padding:2px 7px;border-radius:999px;margin-left:6px}
 </style>
 </head>
 <body>
@@ -270,6 +291,24 @@
       <div class="hint" id="planHint"></div>
     </section>
 
+    <!-- CHEF -->
+    <section id="view-chef" style="display:none">
+      <h2 class="sectionTitle">Chef del plan</h2>
+      <div class="chatBox">
+        <div class="chatMsgs" id="chatMsgs"></div>
+        <div class="chipRow" id="chipRow">
+          <button class="sugChip" onclick="chipSend('No me gusta una comida del plan, quiero reemplazarla')">Reemplazar una comida</button>
+          <button class="sugChip" onclick="chipSend('Sugerime una cena más rápida de preparar')">Cena más rápida</button>
+          <button class="sugChip" onclick="chipSend('Quiero una opción vegetariana para algún almuerzo')">Opción veggie</button>
+        </div>
+        <div class="chatInput">
+          <input id="chatText" placeholder="Ej: cambiá la merluza del martes por otra cosa…" onkeydown="if(event.key==='Enter')sendChat()">
+          <button class="btn" id="chatSend" onclick="sendChat()">Enviar</button>
+        </div>
+      </div>
+      <p class="hint">El chef conoce el plan completo, los objetivos y porciones de cada uno. Puede proponer reemplazos concretos que se aplican al menú de los dos con un toque. Las comidas modificadas se pueden restaurar desde la receta con ↺.</p>
+    </section>
+
     <!-- PESO -->
     <section id="view-peso" style="display:none">
       <h2 class="sectionTitle">Registrar peso</h2>
@@ -303,6 +342,7 @@
 
   <nav class="tabs">
     <button class="tab active" data-view="plan" onclick="switchView('plan')">🍽 Plan</button>
+    <button class="tab" data-view="chef" onclick="switchView('chef')">🧑‍🍳 Chef</button>
     <button class="tab" data-view="peso" onclick="switchView('peso')">⚖ Peso</button>
     <button class="tab" data-view="stats" onclick="switchView('stats')">📈 Evolución</button>
   </nav>
@@ -465,6 +505,7 @@ async function init(){
   if(!STATE.weights.valen) STATE.weights.valen=[];
   if(!STATE.weights.consti) STATE.weights.consti=[];
   if(!STATE.adherence) STATE.adherence={valen:{},consti:{}};
+  if(!STATE.overrides) STATE.overrides={};
   // auto-login si hay sesión recordada
   const s=await session.getAsync();
   if(s && s.user && STATE.profiles[s.user]) enter(s.user);
@@ -522,12 +563,15 @@ async function logout(){
 
 /* =================== TABS =================== */
 function switchView(v){
-  ['plan','peso','stats'].forEach(x=>{
+  ['plan','chef','peso','stats'].forEach(x=>{
     document.getElementById('view-'+x).style.display = x===v?'block':'none';
     document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
   });
   if(v==='peso') renderEntries();
   if(v==='stats') renderStats();
+  if(v==='chef' && !document.getElementById('chatMsgs').children.length){
+    pushBubble('bot',`Hola ${PROFILES_META[currentUser].name.split(' ')[0]} 👋 Soy el chef del plan. Contame qué querés cambiar del menú — puedo proponerte reemplazos con receta y calorías equivalentes, y aplicarlos directo.`);
+  }
 }
 
 /* =================== PLAN =================== */
@@ -546,9 +590,13 @@ function renderPills(){
 
 function isGymDay(i){ return (STATE.profiles.consti.gymDays||[]).includes(i); }
 
-function kcalFor(mealId,user,dayIdx){
-  const m=MEALS[mealId];
-  const k = user==='valen' ? m.kv : m.kc;
+function mealAt(dayIdx,slotIdx){
+  const o=(STATE.overrides||{})[dayIdx+'-'+slotIdx];
+  return o || MEALS[PLAN[dayIdx].slots[slotIdx]];
+}
+
+function kcalOf(meal,user,dayIdx){
+  const k = user==='valen' ? meal.kv : meal.kc;
   if(Array.isArray(k)) return isGymDay(dayIdx)?k[0]:k[1];
   return k;
 }
@@ -573,34 +621,37 @@ function renderDay(){
     : '<span class="badge gym">😴 Descanso Consti · ½ carbos</span>');
   document.getElementById('dayBadges').innerHTML=badges.join('');
 
-  const total=day.slots.reduce((s,id)=>s+kcalFor(id,currentUser,selectedDay),0);
+  const total=day.slots.reduce((s,_,i)=>s+kcalOf(mealAt(selectedDay,i),currentUser,selectedDay),0);
   const dateISO=dateForDay(selectedDay);
   const isFuture = dateISO > new Date().toISOString().slice(0,10);
   const adh=(STATE.adherence[currentUser]||{})[dateISO]||{};
 
   const ticket=document.getElementById('mealTicket'); ticket.innerHTML='';
 
-  // encabezado con total diario
   ticket.insertAdjacentHTML('beforeend',
     `<div class="meal" style="background:var(--sage-soft)"><div class="dayKcal">Total del día (${PROFILES_META[currentUser].name.split(' ')[0]}): <b class="num">≈ ${total.toLocaleString('es-AR')} kcal</b> · valores estimados</div></div>`);
 
-  day.slots.forEach((id,idx)=>{
-    const m=MEALS[id];
-    const kcal=kcalFor(id,currentUser,selectedDay);
+  day.slots.forEach((_,idx)=>{
+    const m=mealAt(selectedDay,idx);
+    const isOverride=!!(STATE.overrides||{})[selectedDay+'-'+idx];
+    const kcal=kcalOf(m,currentUser,selectedDay);
     const time = (idx===2 && day.vianda) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
     const rows=m.ing.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
-    const st=adh[idx]; // 'ok' | 'skip' | undefined
+    const st=adh[idx];
     const adhBtns = isFuture ? '' : `
       <div class="adhWrap">
         <button class="adhBtn ok ${st==='ok'?'on':''}" onclick="setAdh(${idx},'ok')">✓ Cumplida</button>
         <button class="adhBtn skip ${st==='skip'?'on':''}" onclick="setAdh(${idx},'skip')">✗ No</button>
       </div>`;
+    const modBadge=isOverride?`<span class="modBadge">✎ ${PROFILES_META[m.by]?PROFILES_META[m.by].letter:'✎'}</span>`:'';
+    const restoreBtn=isOverride?`<button class="rBtn" onclick="restoreMeal(${selectedDay},${idx})">↺ Original</button>`:'';
     ticket.insertAdjacentHTML('beforeend',
       `<div class="meal">
-        <div class="label"><span>${SLOT_LABELS[idx]}</span><span class="kcal num">~${kcal} kcal</span><span class="time">${time}</span></div>
+        <div class="label"><span>${SLOT_LABELS[idx]}${modBadge}</span><span class="kcal num">~${kcal} kcal</span><span class="time">${time}</span></div>
         <div class="dish">${m.n}</div>
         <div class="mealActions">
           <button class="rBtn" aria-expanded="false" onclick="toggleRecipe(this)">Receta ▾</button>
+          ${restoreBtn}
           ${adhBtns}
         </div>
         <div class="recipe">
@@ -625,15 +676,134 @@ function toggleRecipe(btn){
   btn.textContent = open ? 'Receta ▴' : 'Receta ▾';
 }
 
+async function restoreMeal(day,slot){
+  delete STATE.overrides[day+'-'+slot];
+  await store.set(STATE);
+  toast('Comida restaurada al plan original');
+  renderDay();
+}
+
 async function setAdh(idx,val){
   const dateISO=dateForDay(selectedDay);
   if(!STATE.adherence[currentUser]) STATE.adherence[currentUser]={};
   const day=STATE.adherence[currentUser][dateISO]||{};
-  if(day[idx]===val) delete day[idx]; else day[idx]=val; // tocar de nuevo = desmarcar
+  if(day[idx]===val) delete day[idx]; else day[idx]=val;
   STATE.adherence[currentUser][dateISO]=day;
   await store.set(STATE);
   renderDay();
   toast(val==='ok' && day[idx] ? 'Comida cumplida ✓' : day[idx]==='skip' ? 'Registrado — mañana se retoma 💪' : 'Marca borrada');
+}
+
+/* =================== CHEF (agente IA) =================== */
+const chatHistory={valen:[],consti:[]};
+
+function planSnapshot(){
+  const days=PLAN.map((d,di)=>({
+    dia:DAY_NAMES[di],
+    comidas:d.slots.map((_,si)=>{
+      const m=mealAt(di,si);
+      return {slot:si, nombre:m.n, kcalV:m.kv, kcalC:m.kc};
+    })
+  }));
+  return JSON.stringify(days);
+}
+
+function chefSystem(){
+  const who=PROFILES_META[currentUser].name;
+  return `Sos el chef-nutricionista de NutriPlan, la app de plan alimentario de una pareja de Buenos Aires:
+- Valentina: 1.61 m, objetivo bajar a ~52 kg con déficit moderado (~1500 kcal/día, proteína ~100-115 g/día).
+- Constantino: 1.88 m, recomposición corporal (bajar grasa, mantener músculo), gym 3x/semana, toma creatina (~2100-2300 kcal/día, proteína ~140-160 g/día). Días de gym: carbohidratos completos; descanso: mitad.
+Usuario que te escribe ahora: ${who}.
+Principios del plan: proteína en cada comida, mitad del plato verduras, comida real accesible en supermercados/verdulerías de Buenos Aires, ultraprocesados al mínimo, pescado 2-3x/semana, desayuno fijo (huevos revueltos con tostadas). Los slots son: 0=Desayuno, 1=Media mañana, 2=Almuerzo, 3=Merienda, 4=Cena. Los días: 0=Lunes ... 6=Domingo.
+Plan actual: ${planSnapshot()}
+
+RESPONDÉ SOLO CON JSON VÁLIDO, sin markdown ni backticks, con esta forma exacta:
+{"reply":"tu respuesta en español rioplatense, breve y concreta","changes":[{"day":0,"slot":4,"meal":{"n":"Nombre del plato","kv":350,"kc":500,"prep":"preparación en 1-2 líneas","ing":[["Ingrediente","cant Valentina","cant Constantino"]]}}]}
+
+Reglas:
+- "changes" solo si el usuario pide un cambio concreto de comida; si no, lista vacía.
+- Al reemplazar una comida, mantené kcal similares (±15%) a la que reemplazás, misma lógica de proteína, e ingredientes con gramos.
+- "kc" puede ser número o [kcalDíaGym, kcalDíaDescanso] si el plato lleva carbohidratos variables.
+- Máximo 3 changes por respuesta. No cambies el desayuno salvo pedido explícito (es fijo a propósito).`;
+}
+
+function chipSend(t){ document.getElementById('chatText').value=t; sendChat(); }
+
+function pushBubble(cls,text){
+  const box=document.getElementById('chatMsgs');
+  const el=document.createElement('div');
+  el.className='bubble '+cls; el.textContent=text;
+  box.appendChild(el); box.scrollTop=box.scrollHeight;
+  return el;
+}
+
+async function sendChat(){
+  const inp=document.getElementById('chatText');
+  const text=inp.value.trim();
+  if(!text) return;
+  inp.value='';
+  document.getElementById('chipRow').style.display='none';
+  pushBubble('user',text);
+  const hist=chatHistory[currentUser];
+  hist.push({role:'user',content:text});
+  const thinking=pushBubble('thinking','El chef está pensando…');
+  document.getElementById('chatSend').disabled=true;
+  try{
+    const response=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',
+        max_tokens:1000,
+        system:chefSystem(),
+        messages:hist.slice(-8)
+      })
+    });
+    const data=await response.json();
+    thinking.remove();
+    const raw=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    let parsed=null;
+    try{ parsed=JSON.parse(raw.replace(/```json|```/g,'').trim()); }catch(e){}
+    const reply = parsed && parsed.reply ? parsed.reply : (raw || 'No pude procesar la respuesta. Probá de nuevo.');
+    pushBubble('bot',reply);
+    hist.push({role:'assistant',content:raw||reply});
+    if(parsed && Array.isArray(parsed.changes)){
+      parsed.changes.slice(0,3).forEach(ch=>{ if(validChange(ch)) renderProposal(ch); });
+    }
+  }catch(err){
+    thinking.remove();
+    pushBubble('bot','No pude conectarme con el chef 😕. Si la app está publicada fuera de Claude, esta función necesita configurar una API key — dentro de Claude funciona directo.');
+  }
+  document.getElementById('chatSend').disabled=false;
+}
+
+function validChange(ch){
+  return ch && Number.isInteger(ch.day) && ch.day>=0 && ch.day<=6
+    && Number.isInteger(ch.slot) && ch.slot>=0 && ch.slot<=4
+    && ch.meal && typeof ch.meal.n==='string' && Array.isArray(ch.meal.ing);
+}
+
+function renderProposal(ch){
+  const box=document.getElementById('chatMsgs');
+  const kc=Array.isArray(ch.meal.kc)?`${ch.meal.kc[0]}/${ch.meal.kc[1]}`:ch.meal.kc;
+  const ing=ch.meal.ing.map(r=>`${r[0]}: ${r[1]} | ${r[2]}`).join(' · ');
+  const el=document.createElement('div');
+  el.className='proposal';
+  el.innerHTML=`
+    <div class="pTitle">${ch.meal.n}</div>
+    <div class="pMeta">${DAY_NAMES[ch.day]} · ${SLOT_LABELS[ch.slot]} · ~${ch.meal.kv} kcal (V) / ~${kc} kcal (C)</div>
+    <div class="pIng">${ing}</div>
+    <button class="btn">Aplicar al menú</button>`;
+  el.querySelector('button').onclick=async ()=>{
+    STATE.overrides[ch.day+'-'+ch.slot]={...ch.meal, by:currentUser, date:new Date().toISOString().slice(0,10)};
+    await store.set(STATE);
+    el.classList.add('applied');
+    el.querySelector('button').textContent='✓ Aplicado — se ve en el Plan';
+    el.querySelector('button').disabled=true;
+    toast('Menú actualizado ✓');
+    renderDay();
+  };
+  box.appendChild(el); box.scrollTop=box.scrollHeight;
 }
 
 /* =================== PESO =================== */
