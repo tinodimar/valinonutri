@@ -193,6 +193,28 @@
   .whoBtn.on[data-u="consti"]{background:var(--consti);border-color:var(--consti);color:#fff}
   @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
   @media (min-width:560px){ .statGrid{grid-template-columns:repeat(4,1fr)} }
+
+  /* recetas y adherencia */
+  .kcal{font-size:.7rem;font-weight:700;background:#EFE9D8;color:#8a6d12;padding:3px 8px;border-radius:999px;letter-spacing:0}
+  .dayKcal{font-size:.85rem;font-weight:700;color:var(--muted)}
+  .dayKcal b{color:var(--ink);font-family:'Fraunces',serif;font-size:1.05rem}
+  .mealActions{display:flex;gap:8px;margin-top:9px;align-items:center;flex-wrap:wrap}
+  .rBtn{border:1.5px solid var(--line);background:var(--paper);border-radius:8px;padding:5px 10px;
+    font-family:'Karla';font-weight:700;font-size:.75rem;color:var(--muted);cursor:pointer}
+  .rBtn[aria-expanded="true"]{background:var(--sage-soft);color:var(--sage);border-color:var(--sage)}
+  .adhWrap{margin-left:auto;display:flex;gap:6px}
+  .adhBtn{border:1.5px solid var(--line);background:var(--paper);border-radius:8px;padding:5px 10px;
+    font-family:'Karla';font-weight:700;font-size:.75rem;color:var(--muted);cursor:pointer}
+  .adhBtn.ok.on{background:var(--sage);border-color:var(--sage);color:#fff}
+  .adhBtn.skip.on{background:var(--danger);border-color:var(--danger);color:#fff}
+  .recipe{display:none;margin-top:10px;background:var(--paper);border:1px dashed var(--line);border-radius:10px;padding:12px}
+  .recipe.open{display:block}
+  .recipe table{width:100%;border-collapse:collapse;font-size:.83rem}
+  .recipe th{text-align:left;font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:4px 6px;border-bottom:1px solid var(--line)}
+  .recipe th.v{color:var(--valen)} .recipe th.c{color:var(--consti)}
+  .recipe td{padding:5px 6px;border-bottom:1px dashed var(--line)}
+  .recipe tr:last-child td{border-bottom:none}
+  .recipe .prep{font-size:.8rem;color:var(--muted);margin-top:8px;line-height:1.45}
 </style>
 </head>
 <body>
@@ -315,71 +337,69 @@
 const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
 const DAY_SHORT = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
 
+/* ---- Recetario: 15 comidas que se repiten en la semana ----
+   kv = kcal Valentina · kc = kcal Constantino (número, o [díaGym, díaDescanso])
+   ing = [ingrediente, cantidad V, cantidad C] */
+const MEALS={
+ d1:{n:'Yogur con avena, banana y chía',kv:350,kc:500,
+  prep:'Mezclar todo en un bowl. C: sumar 2 huevos revueltos aparte o ½ scoop de whey al yogur.',
+  ing:[['Yogur natural o proteico','125 g','170 g'],['Avena arrollada','40 g','50 g'],['Banana','1 chica (90 g)','1 (120 g)'],['Semillas de chía','10 g','10 g'],['Huevos o whey (solo C)','—','2 u / ½ scoop']]},
+ d2:{n:'Pancakes de avena y huevo',kv:380,kc:490,
+  prep:'Licuar avena, huevos y banana. Cocinar en sartén antiadherente con rocío vegetal. C: whey a la mezcla.',
+  ing:[['Avena arrollada','40 g','50 g'],['Huevos','2 u','2 u'],['Banana','½ (60 g)','1 (120 g)'],['Whey (solo C)','—','½ scoop (15 g)']]},
+ d3:{n:'Huevos revueltos con tostadas',kv:270,kc:420,
+  prep:'Huevos a fuego bajo revolviendo; pan tostado. Desayuno fijo todos los días — si un día quieren variar, el yogur con avena o los pancakes son equivalentes.',
+  ing:[['Huevos','2 u','3 u'],['Pan integral','1 rebanada (30 g)','2 rebanadas (60 g)'],['Aceite de oliva','5 g','5 g']]},
+ mm:{n:'Fruta o yogur proteico',kv:90,kc:200,
+  prep:'V: una fruta o un yogur. C: fruta + yogur proteico, o fruta + maní sin sal (20 g).',
+  ing:[['Fruta de estación','1 u (150 g)','1 u (150 g)'],['Yogur proteico o maní (C)','—','1 u / 20 g']]},
+ a1:{n:'Bowl de pollo con arroz, verduras y palta',kv:530,kc:[750,620],
+  prep:'Pollo grillado en tiras + arroz + verduras asadas + palta y oliva. Se arma directo en el táper para las viandas.',
+  ing:[['Pechuga de pollo','130 g','200 g'],['Arroz integral cocido','100 g (½ taza)','200 g gym / 100 g descanso'],['Verduras asadas','200 g','250 g'],['Palta','¼ (30 g)','¼ (30 g)'],['Aceite de oliva','10 g','10 g']]},
+ a2:{n:'Ensalada de lentejas con atún y huevo',kv:430,kc:[640,540],
+  prep:'Mezclar lentejas cocidas, atún escurrido, huevo duro picado y verduras. Aliñar con oliva y limón. Aguanta perfecto en táper.',
+  ing:[['Lentejas cocidas','100 g','200 g gym / 120 g descanso'],['Atún al natural','1 lata (80 g)','1½ lata (120 g)'],['Huevo duro','1 u','1 u'],['Tomate, cebolla, morrón','150 g','200 g'],['Aceite de oliva','10 g','10 g']]},
+ a3:{n:'Milanesa al horno con ensalada',kv:460,kc:[720,600],
+  prep:'Milanesa de pollo o nalga AL HORNO (nunca frita). C días de gym: sumar batata asada.',
+  ing:[['Milanesa de pollo o nalga','1 u (150 g)','1½ u (220 g)'],['Ensalada mixta','plato','plato'],['Batata (solo C, día gym)','—','200 g'],['Aceite de oliva','10 g','10 g']]},
+ a4:{n:'Carne magra a la plancha con ensalada y papa',kv:450,kc:[700,590],
+  prep:'Bife de nalga, cuadril o lomo a la plancha — o el corte magro del asado del domingo, sin grasa visible ni achuras.',
+  ing:[['Carne magra','150 g','220 g'],['Papa o choclo','100 g','250 g gym / 120 g descanso'],['Ensaladas','plato','plato'],['Aceite de oliva','10 g','10 g']]},
+ m1:{n:'Tostada con ricota y tomate',kv:190,kc:300,
+  prep:'Pan tostado con ricota, tomate y orégano. C: doble porción de ricota.',
+  ing:[['Pan integral','1 rebanada (30 g)','2 rebanadas (60 g)'],['Ricota','50 g','100 g'],['Tomate','rodajas','rodajas']]},
+ m2:{n:'Yogur con chía (o fruta + frutos secos)',kv:170,kc:300,
+  prep:'Dejar la chía 10 min en el yogur. C: sumar frutos secos (20 g) o usar yogur proteico.',
+  ing:[['Yogur','1 u (125 g)','1 proteico'],['Semillas de chía','10 g','10 g'],['Frutos secos (C)','—','20 g']]},
+ c1:{n:'Omelette de espinaca y queso + ensalada',kv:360,kc:520,
+  prep:'Saltear la espinaca, sumar los huevos batidos y el queso. C: acompañar con 1 rebanada de pan integral.',
+  ing:[['Huevos','2 u','3 u'],['Espinaca o acelga','100 g','120 g'],['Queso port salut','30 g','40 g'],['Ensalada','plato','plato'],['Pan integral (C)','—','1 rebanada'],['Aceite de oliva','5 g','5 g']]},
+ c2:{n:'Merluza al horno con puré de calabaza',kv:350,kc:490,
+  prep:'Merluza al horno con limón y aromáticos. Puré de calabaza sin manteca (chorrito de leche) + brócoli al vapor.',
+  ing:[['Merluza','150 g','220 g'],['Calabaza','200 g','300 g'],['Brócoli','100 g','150 g'],['Aceite de oliva','10 g','10 g']]},
+ c3:{n:'Bolognesa magra con fideos integrales',kv:490,kc:[700,580],
+  prep:'Carne picada ESPECIAL (no común) con salsa de tomate y verduras. Fideos integrales o de legumbres.',
+  ing:[['Carne picada especial','100 g','150 g'],['Fideos integrales cocidos','100 g','200 g gym / 120 g descanso'],['Salsa de tomate','150 g','200 g'],['Ensalada','plato','plato']]},
+ c4:{n:'Comida libre / social 🍽',kv:700,kc:800,
+  prep:'Planificada y sin culpa: es parte del plan (regla 80/20). Si salen: plato con proteína visible + verduras; frituras y panera con criterio. Calorías estimadas.',
+  ing:[['A elección','—','—']]},
+ c5:{n:'Tortilla de atún + sopa de verduras',kv:340,kc:480,
+  prep:'Tortilla de atún, huevo y cebolla a la sartén. Sopa casera de verduras para acompañar.',
+  ing:[['Atún al natural','80 g','120 g'],['Huevos','2 u','3 u'],['Cebolla','½ u','½ u'],['Sopa de verduras','1 taza','1 taza']]}
+};
+
+/* ---- Semana: cada día referencia recetas del recetario (se repiten a propósito) ---- */
 const PLAN = [
- { // Lunes — gym por defecto
-  office:{consti:true,valen:false}, fish:false, batch:false,
-  meals:[
-   {k:'Desayuno',t:'7–9h',d:'Yogur natural o proteico con avena, banana y 1 cda de chía', nc:'+ 2 huevos o ½ scoop de whey'},
-   {k:'Media mañana',t:'11h',d:'1 fruta', nc:'+ puñado de maní sin sal'},
-   {k:'Almuerzo',t:'13h · vianda C',d:'Bowl de pollo grillado con arroz integral o quinoa, verduras asadas y ¼ de palta', nv:'½ taza de arroz/quinoa', nc:'1.5 porciones de pollo · arroz: CARB'},
-   {k:'Merienda',t:'17h',d:'Tostada integral con ricota y tomate, o yogur'},
-   {k:'Cena',t:'21h',d:'Omelette de 2–3 huevos con espinaca y queso + ensalada', nv:'2 huevos', nc:'3 huevos + 1 rebanada de pan integral'}
-  ]},
- { // Martes
-  office:{consti:true,valen:true}, fish:true, batch:false,
-  meals:[
-   {k:'Desayuno',t:'7–9h',d:'Pancakes de avena y huevo (avena + 2 huevos + banana, licuado)', nc:'+ ½ scoop de whey en la mezcla'},
-   {k:'Media mañana',t:'11h',d:'Yogur proteico (YoPro / Ser Protein)'},
-   {k:'Almuerzo',t:'13h · vianda ambos',d:'Ensalada de lentejas con atún al natural, huevo duro y verduras asadas', nv:'½ taza de lentejas', nc:'lentejas: CARB · atún extra'},
-   {k:'Merienda',t:'17h',d:'1 fruta + frutos secos'},
-   {k:'Cena',t:'21h',d:'🐟 Merluza al horno con puré de calabaza y brócoli', nv:'porción de merluza', nc:'porción grande + puré: CARB'}
-  ]},
- { // Miércoles
-  office:{consti:true,valen:false}, fish:false, batch:true,
-  meals:[
-   {k:'Desayuno',t:'7–9h',d:'Yogur con granola sin azúcar y kiwi', nc:'+ 2 huevos revueltos'},
-   {k:'Media mañana',t:'11h',d:'1 fruta'},
-   {k:'Almuerzo',t:'13h · vianda C',d:'Wrap integral de pollo o carne desmechada con vegetales y hummus', nv:'1 wrap', nc:'2 wraps: CARB'},
-   {k:'Merienda',t:'17h',d:'Huevo duro + galletas de arroz con queso blanco'},
-   {k:'Cena',t:'21h',d:'Bolognesa magra con pasta de legumbres o fideos integrales + ensalada', nv:'½ plato de pasta', nc:'plato: CARB · carne extra'}
-  ]},
- { // Jueves — gym por defecto
-  office:{consti:true,valen:false}, fish:false, batch:false,
-  meals:[
-   {k:'Desayuno',t:'7–9h',d:'2–3 huevos revueltos con tostada integral y tomate', nv:'2 huevos, 1 tostada', nc:'3 huevos, 2 tostadas'},
-   {k:'Media mañana',t:'11h',d:'Yogur o fruta'},
-   {k:'Almuerzo',t:'13h · vianda C',d:'Ensalada de atún con arroz integral, huevo duro, chauchas y palta', nv:'½ taza de arroz', nc:'arroz: CARB'},
-   {k:'Merienda',t:'17h',d:'Yogur con chía, o barra proteica'},
-   {k:'Cena',t:'21h',d:'Salteado de pollo y verduras al wok con arroz', nv:'½ taza de arroz', nc:'arroz: CARB'}
-  ]},
- { // Viernes
-  office:{consti:false,valen:false}, fish:true, batch:false,
-  meals:[
-   {k:'Desayuno',t:'8–10h',d:'Pancakes de avena con 1 cda de mantequilla de maní', nc:'+ whey en la mezcla'},
-   {k:'Media mañana',t:'11h',d:'1 fruta'},
-   {k:'Almuerzo',t:'13h',d:'Milanesa de pollo o carne AL HORNO con ensalada grande', nv:'1 milanesa', nc:'1.5 milanesas + batata: CARB'},
-   {k:'Merienda',t:'17h',d:'Tostada integral con palta y huevo'},
-   {k:'Cena',t:'21h',d:'🐟 Trucha, salmón o merluza a la plancha con quinoa y verduras asadas', nv:'½ taza de quinoa', nc:'quinoa: CARB'}
-  ]},
- { // Sábado — gym por defecto
-  office:{consti:false,valen:false}, fish:false, batch:false,
-  meals:[
-   {k:'Desayuno',t:'9–11h',d:'Huevos revueltos con tostadas integrales y palta', nv:'2 huevos, 1 tostada', nc:'3 huevos, 2 tostadas'},
-   {k:'Media mañana',t:'12h',d:'Yogur'},
-   {k:'Almuerzo',t:'13–14h',d:'Bife magro (nalga, cuadril, lomo) a la plancha con ensalada + choclo o papa', nv:'½ taza de choclo/papa', nc:'porción grande: CARB'},
-   {k:'Merienda',t:'17h',d:'1 fruta + frutos secos'},
-   {k:'Cena',t:'21h+',d:'🍽 Social / libre planificada — si salen: plato con proteína visible + verduras. Una comida no arruina la semana; el resto la construye.'}
-  ]},
- { // Domingo
-  office:{consti:false,valen:false}, fish:true, batch:true,
-  meals:[
-   {k:'Desayuno',t:'9–11h',d:'Yogur con granola y frutas', nc:'+ 2 huevos'},
-   {k:'Media mañana',t:'12h',d:'1 fruta'},
-   {k:'Almuerzo',t:'13–14h',d:'Asado magro sin grasa visible (vacío desgrasado, pollo, matambrito) sin achuras, con ensaladas variadas', nc:'+ papa al rescoldo: CARB'},
-   {k:'Merienda',t:'17h',d:'Ricota batida con cacao amargo y stevia + banana (postre proteico)'},
-   {k:'Cena',t:'21h',d:'🐟 Liviana: sopa de verduras + tortilla de atún, o ensalada tibia de garbanzos con huevo'}
-  ]}
+ {office:{consti:true, valen:false}, fish:false, batch:false, vianda:'vianda C',    slots:['d3','mm','a1','m1','c1']}, // Lunes
+ {office:{consti:true, valen:true }, fish:true,  batch:false, vianda:'vianda ambos',slots:['d3','mm','a2','m2','c2']}, // Martes
+ {office:{consti:true, valen:false}, fish:false, batch:true,  vianda:'vianda C',    slots:['d3','mm','a2','m1','c3']}, // Miércoles
+ {office:{consti:true, valen:false}, fish:false, batch:false, vianda:'vianda C',    slots:['d3','mm','a1','m2','c1']}, // Jueves
+ {office:{consti:false,valen:false}, fish:true,  batch:false, vianda:null,          slots:['d3','mm','a3','m1','c2']}, // Viernes
+ {office:{consti:false,valen:false}, fish:false, batch:false, vianda:null,          slots:['d3','mm','a4','m2','c4']}, // Sábado
+ {office:{consti:false,valen:false}, fish:true,  batch:true,  vianda:null,          slots:['d3','mm','a4','m2','c5']}  // Domingo
 ];
+const SLOT_LABELS=['Desayuno','Media mañana','Almuerzo','Merienda','Cena'];
+const SLOT_TIMES=['7–9h','11h','13h','17h','21h'];
 
 const PROFILES_META = {
   valen:{name:'Valentina', letter:'V', color:'#B04A6E', height:1.61},
@@ -391,7 +411,8 @@ const DEFAULT_STATE = {
     valen:{pin:null, target:51.8},
     consti:{pin:null, target:null, gymDays:[0,3,5]} // L, J, S por defecto
   },
-  weights:{ valen:[], con:[], consti:[] }
+  weights:{ valen:[], con:[], consti:[] },
+  adherence:{ valen:{}, consti:{} }
 };
 
 /* =================== STORAGE =================== */
@@ -443,6 +464,7 @@ async function init(){
   if(!STATE.weights.consti && STATE.weights.con) STATE.weights.consti = STATE.weights.con;
   if(!STATE.weights.valen) STATE.weights.valen=[];
   if(!STATE.weights.consti) STATE.weights.consti=[];
+  if(!STATE.adherence) STATE.adherence={valen:{},consti:{}};
   // auto-login si hay sesión recordada
   const s=await session.getAsync();
   if(s && s.user && STATE.profiles[s.user]) enter(s.user);
@@ -524,9 +546,23 @@ function renderPills(){
 
 function isGymDay(i){ return (STATE.profiles.consti.gymDays||[]).includes(i); }
 
+function kcalFor(mealId,user,dayIdx){
+  const m=MEALS[mealId];
+  const k = user==='valen' ? m.kv : m.kc;
+  if(Array.isArray(k)) return isGymDay(dayIdx)?k[0]:k[1];
+  return k;
+}
+
+function dateForDay(i){
+  const t=new Date(); const d=new Date(t);
+  d.setDate(t.getDate()+(i-todayIdx()));
+  return d.toISOString().slice(0,10);
+}
+
 function renderDay(){
   const day=PLAN[selectedDay];
   document.getElementById('dayTitle').textContent=DAY_NAMES[selectedDay];
+
   const badges=[];
   if(day.office.consti) badges.push('<span class="badge">🏢 Consti oficina</span>');
   if(day.office.valen) badges.push('<span class="badge">🏢 Valen oficina</span>');
@@ -537,25 +573,67 @@ function renderDay(){
     : '<span class="badge gym">😴 Descanso Consti · ½ carbos</span>');
   document.getElementById('dayBadges').innerHTML=badges.join('');
 
+  const total=day.slots.reduce((s,id)=>s+kcalFor(id,currentUser,selectedDay),0);
+  const dateISO=dateForDay(selectedDay);
+  const isFuture = dateISO > new Date().toISOString().slice(0,10);
+  const adh=(STATE.adherence[currentUser]||{})[dateISO]||{};
+
   const ticket=document.getElementById('mealTicket'); ticket.innerHTML='';
-  day.meals.forEach(m=>{
-    const chips=[];
-    if(m.nv) chips.push({cls:'valen', who:'valen', txt:`V: ${m.nv}`});
-    if(m.nc){
-      let txt=m.nc;
-      if(txt.includes('CARB')) txt = txt.replace(': CARB', isGymDay(selectedDay)?' (porción completa)':' (½ porción hoy)');
-      chips.push({cls:'consti', who:'consti', txt:`C: ${txt}`});
-    }
-    chips.sort((a,b)=>(a.who===currentUser?-1:0)-(b.who===currentUser?-1:0));
-    const notes=chips.map(c=>`<span class="note ${c.cls}">${c.txt}</span>`).join(' ');
+
+  // encabezado con total diario
+  ticket.insertAdjacentHTML('beforeend',
+    `<div class="meal" style="background:var(--sage-soft)"><div class="dayKcal">Total del día (${PROFILES_META[currentUser].name.split(' ')[0]}): <b class="num">≈ ${total.toLocaleString('es-AR')} kcal</b> · valores estimados</div></div>`);
+
+  day.slots.forEach((id,idx)=>{
+    const m=MEALS[id];
+    const kcal=kcalFor(id,currentUser,selectedDay);
+    const time = (idx===2 && day.vianda) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
+    const rows=m.ing.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
+    const st=adh[idx]; // 'ok' | 'skip' | undefined
+    const adhBtns = isFuture ? '' : `
+      <div class="adhWrap">
+        <button class="adhBtn ok ${st==='ok'?'on':''}" onclick="setAdh(${idx},'ok')">✓ Cumplida</button>
+        <button class="adhBtn skip ${st==='skip'?'on':''}" onclick="setAdh(${idx},'skip')">✗ No</button>
+      </div>`;
     ticket.insertAdjacentHTML('beforeend',
-      `<div class="meal"><div class="label"><span>${m.k}</span><span class="time">${m.t}</span></div>
-       <div class="dish">${m.d}</div>${notes?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">'+notes+'</div>':''}</div>`);
+      `<div class="meal">
+        <div class="label"><span>${SLOT_LABELS[idx]}</span><span class="kcal num">~${kcal} kcal</span><span class="time">${time}</span></div>
+        <div class="dish">${m.n}</div>
+        <div class="mealActions">
+          <button class="rBtn" aria-expanded="false" onclick="toggleRecipe(this)">Receta ▾</button>
+          ${adhBtns}
+        </div>
+        <div class="recipe">
+          <table>
+            <tr><th>Ingrediente</th><th class="v">Valentina</th><th class="c">Constantino</th></tr>
+            ${rows}
+          </table>
+          <div class="prep">👨‍🍳 ${m.prep}</div>
+        </div>
+      </div>`);
   });
 
   document.getElementById('planHint').innerHTML = currentUser==='consti'
-    ? '💊 Creatina: 3–5 g hoy (todos los días, con abundante agua). Meta de proteína: ~140–160 g.'
-    : '💧 2 litros de agua por día · fruta como postre · comé despacio.';
+    ? '💊 Creatina: 3–5 g hoy (todos los días, con agua). Meta de proteína: ~140–160 g. Las kcal ya contemplan tu día de gym/descanso.'
+    : '💧 2 L de agua · comé despacio · las kcal son estimaciones de referencia, la consistencia importa más que la precisión.';
+}
+
+function toggleRecipe(btn){
+  const rec=btn.closest('.meal').querySelector('.recipe');
+  const open=rec.classList.toggle('open');
+  btn.setAttribute('aria-expanded',open);
+  btn.textContent = open ? 'Receta ▴' : 'Receta ▾';
+}
+
+async function setAdh(idx,val){
+  const dateISO=dateForDay(selectedDay);
+  if(!STATE.adherence[currentUser]) STATE.adherence[currentUser]={};
+  const day=STATE.adherence[currentUser][dateISO]||{};
+  if(day[idx]===val) delete day[idx]; else day[idx]=val; // tocar de nuevo = desmarcar
+  STATE.adherence[currentUser][dateISO]=day;
+  await store.set(STATE);
+  renderDay();
+  toast(val==='ok' && day[idx] ? 'Comida cumplida ✓' : day[idx]==='skip' ? 'Registrado — mañana se retoma 💪' : 'Marca borrada');
 }
 
 /* =================== PESO =================== */
@@ -619,6 +697,22 @@ function weekRate(arr){
   return +((last.w-ref.w)/(days/7)).toFixed(2);
 }
 
+function adherenceStat(u){
+  const adh=STATE.adherence[u]||{};
+  const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-14);
+  const ciso=cutoff.toISOString().slice(0,10);
+  let ok=0, skip=0;
+  for(const [d,meals] of Object.entries(adh)){
+    if(d<ciso) continue;
+    for(const v of Object.values(meals)){ if(v==='ok') ok++; else if(v==='skip') skip++; }
+  }
+  const total=ok+skip;
+  if(!total) return `<div class="stat" style="grid-column:1/-1"><div class="k">Adherencia (14 días)</div><div class="v">—</div><div class="s">Marcá ✓/✗ en cada comida del plan para medirla</div></div>`;
+  const pct=Math.round(ok/total*100);
+  const msg = pct>=85 ? 'excelente — este ritmo da resultados' : pct>=70 ? 'buena — margen para ajustar' : 'floja — revisá qué comidas fallan y simplificalas';
+  return `<div class="stat" style="grid-column:1/-1"><div class="k">Adherencia (14 días)</div><div class="v num">${pct}%</div><div class="s">${ok} cumplidas · ${skip} no cumplidas · ${msg}</div></div>`;
+}
+
 function setStatsUser(u){ statsUser=u; renderStats(); }
 
 function renderStats(){
@@ -631,7 +725,7 @@ function renderStats(){
   const grid=document.getElementById('statGrid');
 
   if(!arr.length){
-    grid.innerHTML='<div class="stat" style="grid-column:1/-1"><div class="k">Sin datos</div><div class="s">Todavía no hay pesos cargados para este perfil.</div></div>';
+    grid.innerHTML='<div class="stat" style="grid-column:1/-1"><div class="k">Sin datos</div><div class="s">Todavía no hay pesos cargados para este perfil.</div></div>'+adherenceStat(statsUser);
   } else {
     const last=arr[arr.length-1], first=arr[0];
     const bmi=last.w/(meta.height*meta.height);
@@ -653,6 +747,7 @@ function renderStats(){
       <div class="stat"><div class="k">Ritmo</div><div class="v num">${rate===null?'—':(rate>0?'+':'')+rate}</div><div class="s">kg/semana (últ. 4 sem)</div></div>
       <div class="stat"><div class="k">IMC</div><div class="v num">${bmi.toFixed(1)}</div><div class="s">${prof.target?`objetivo: ${prof.target} kg`:'sin objetivo'}</div></div>
       ${prof.target?`<div class="stat" style="grid-column:1/-1"><div class="k">Proyección al objetivo</div><div class="v">${proj}</div><div class="s">${projS}</div></div>`:''}
+      ${adherenceStat(statsUser)}
     `;
   }
   renderChart();
