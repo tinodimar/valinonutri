@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NutriPlan · Valen & Consti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#1E2A21;
+    --paper:#F5F2EA;
+    --card:#FFFFFF;
+    --sage:#5E7153;
+    --sage-soft:#E6EBDD;
+    --line:#D9D4C5;
+    --valen:#B04A6E;
+    --valen-soft:#F6E4EB;
+    --consti:#2E6E6A;
+    --consti-soft:#DFEDEB;
+    --gold:#C9A227;
+    --muted:#7A7668;
+    --danger:#B23B3B;
+    --radius:14px;
+    font-size:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Karla',system-ui,-apple-system,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Fraunces',Georgia,serif}
+  .num{font-variant-numeric:tabular-nums}
+
+  /* ---------- layout shell ---------- */
+  .shell{max-width:680px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
+  main{flex:1;padding:0 16px 96px}
+
+  /* ---------- login ---------- */
+  #loginScreen{display:flex;flex-direction:column;justify-content:center;min-height:100dvh;padding:24px;max-width:520px;margin:0 auto}
+  .brand{text-align:center;margin-bottom:36px}
+  .brand h1{font-family:'Fraunces',serif;font-weight:700;font-size:2.3rem;letter-spacing:-.02em}
+  .brand h1 em{font-style:italic;font-weight:500;color:var(--sage)}
+  .brand p{color:var(--muted);margin-top:6px}
+  .profileGrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .profileCard{
+    background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);
+    padding:26px 14px;text-align:center;cursor:pointer;transition:transform .12s ease, border-color .12s ease;
+  }
+  .profileCard:hover{transform:translateY(-2px)}
+  .profileCard:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .avatar{width:64px;height:64px;border-radius:50%;margin:0 auto 12px;display:flex;align-items:center;justify-content:center;
+    font-family:'Fraunces',serif;font-size:1.6rem;font-weight:700;color:#fff}
+  .profileCard[data-user="valen"] .avatar{background:var(--valen)}
+  .profileCard[data-user="consti"] .avatar{background:var(--consti)}
+  .profileCard h3{font-size:1.05rem}
+  .profileCard span{font-size:.8rem;color:var(--muted)}
+  #pinPanel{margin-top:22px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px;display:none}
+  #pinPanel.open{display:block}
+  #pinPanel h3{font-family:'Fraunces',serif;margin-bottom:4px}
+  #pinPanel p{font-size:.85rem;color:var(--muted);margin-bottom:14px}
+  .pinRow{display:flex;gap:10px}
+  .pinRow input{
+    flex:1;font-size:1.4rem;text-align:center;letter-spacing:.5em;padding:10px;border:1.5px solid var(--line);
+    border-radius:10px;background:var(--paper);font-family:'Karla'
+  }
+  .pinRow input:focus{outline:2px solid var(--sage)}
+  .btn{
+    border:none;border-radius:10px;padding:12px 18px;font-family:'Karla';font-weight:700;font-size:.95rem;
+    cursor:pointer;background:var(--ink);color:#fff;transition:opacity .12s
+  }
+  .btn:hover{opacity:.88}
+  .btn:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+  .btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+  .btn.small{padding:8px 12px;font-size:.82rem}
+  .err{color:var(--danger);font-size:.83rem;margin-top:8px;display:none}
+
+  /* ---------- header ---------- */
+  header.appbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 16px 10px;
+  }
+  .appbar .logo{font-family:'Fraunces',serif;font-weight:700;font-size:1.25rem}
+  .appbar .logo em{font-style:italic;font-weight:500;color:var(--sage)}
+  .userChip{display:flex;align-items:center;gap:8px;background:var(--card);border:1.5px solid var(--line);
+    border-radius:999px;padding:5px 12px 5px 6px;cursor:pointer;font-weight:700;font-size:.85rem}
+  .userChip .dot{width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-family:'Fraunces',serif}
+  .userChip[data-user="valen"] .dot{background:var(--valen)}
+  .userChip[data-user="consti"] .dot{background:var(--consti)}
+
+  /* ---------- tabs ---------- */
+  nav.tabs{
+    position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1.5px solid var(--line);
+    display:flex;justify-content:center;gap:4px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));z-index:50
+  }
+  nav.tabs .tab{
+    flex:1;max-width:160px;border:none;background:transparent;padding:9px 6px;border-radius:10px;
+    font-family:'Karla';font-weight:700;font-size:.83rem;color:var(--muted);cursor:pointer
+  }
+  nav.tabs .tab.active{background:var(--sage-soft);color:var(--sage)}
+  nav.tabs .tab:focus-visible{outline:3px solid var(--gold)}
+
+  /* ---------- plan ---------- */
+  .dayPills{display:flex;gap:6px;overflow-x:auto;padding:8px 0 14px;scrollbar-width:none}
+  .dayPills::-webkit-scrollbar{display:none}
+  .dayPill{
+    min-width:44px;padding:8px 0;text-align:center;border-radius:12px;border:1.5px solid var(--line);
+    background:var(--card);cursor:pointer;font-family:'Karla';font-weight:700;font-size:.85rem;color:var(--muted)
+  }
+  .dayPill small{display:block;font-size:.62rem;font-weight:500;letter-spacing:.06em}
+  .dayPill.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .dayPill.today:not(.active){border-color:var(--gold);color:var(--ink)}
+  .dayHead{display:flex;align-items:baseline;justify-content:space-between;margin:4px 2px 12px}
+  .dayHead h2{font-family:'Fraunces',serif;font-size:1.5rem;font-weight:600}
+  .badges{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .badge{font-size:.7rem;font-weight:700;padding:4px 9px;border-radius:999px;background:var(--sage-soft);color:var(--sage)}
+  .badge.gym{background:#EFE7CF;color:#8a6d12}
+  .badge.fish{background:#DCE9F2;color:#3A6B8A}
+  .badge.batch{background:#EAE3F2;color:#6B5CA5}
+
+  .ticket{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:14px}
+  .meal{padding:14px 16px;border-bottom:1px dashed var(--line)}
+  .meal:last-child{border-bottom:none}
+  .meal .label{
+    display:flex;align-items:baseline;gap:8px;font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted);font-weight:700;margin-bottom:4px
+  }
+  .meal .label .time{margin-left:auto;letter-spacing:0;font-weight:500}
+  .meal .dish{font-size:.98rem;line-height:1.45}
+  .meal .note{
+    margin-top:7px;display:inline-block;font-size:.78rem;font-weight:700;padding:4px 10px;border-radius:8px
+  }
+  .note.valen{background:var(--valen-soft);color:var(--valen)}
+  .note.consti{background:var(--consti-soft);color:var(--consti)}
+
+  /* ---------- peso ---------- */
+  .sectionTitle{font-family:'Fraunces',serif;font-size:1.35rem;font-weight:600;margin:14px 2px 12px}
+  .card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+  .formRow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .field{flex:1;min-width:130px}
+  .field label{display:block;font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:5px;letter-spacing:.04em}
+  .field input{
+    width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);
+    font-family:'Karla';font-size:1rem
+  }
+  .field input:focus{outline:2px solid var(--sage)}
+  .entryList{list-style:none}
+  .entryList li{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px dashed var(--line);font-size:.92rem}
+  .entryList li:last-child{border-bottom:none}
+  .entryList .w{font-weight:700;margin-left:auto}
+  .entryList .del{border:none;background:none;color:var(--muted);cursor:pointer;font-size:1rem;padding:4px}
+  .entryList .del:hover{color:var(--danger)}
+  .delta{font-size:.78rem;font-weight:700}
+  .delta.down{color:var(--sage)} .delta.up{color:var(--danger)} .delta.flat{color:var(--muted)}
+
+  /* ---------- stats ---------- */
+  .statGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .stat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:14px}
+  .stat .k{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .stat .v{font-family:'Fraunces',serif;font-size:1.55rem;font-weight:600;margin-top:2px}
+  .stat .s{font-size:.78rem;color:var(--muted);margin-top:2px}
+  .chartWrap{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:14px;height:320px}
+  .legendRow{display:flex;gap:16px;margin:10px 2px 0;font-size:.82rem;font-weight:700}
+  .legendRow span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+  .legendRow .lv::before{background:var(--valen)} .legendRow .lc::before{background:var(--consti)}
+
+  /* ---------- settings ---------- */
+  .gymDaysRow{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .gymDay{padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--paper);cursor:pointer;font-weight:700;font-size:.85rem}
+  .gymDay.on{background:var(--consti);border-color:var(--consti);color:#fff}
+  dialog{border:none;border-radius:var(--radius);padding:22px;max-width:420px;width:calc(100% - 40px);background:var(--card)}
+  dialog::backdrop{background:rgba(30,42,33,.45)}
+  dialog h3{font-family:'Fraunces',serif;margin-bottom:12px}
+  .modalActions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px}
+  .hint{font-size:.8rem;color:var(--muted);line-height:1.5;margin-top:10px}
+  .empty{padding:26px 10px;text-align:center;color:var(--muted);font-size:.9rem}
+  .toast{
+    position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:10px 18px;border-radius:999px;font-size:.85rem;font-weight:700;opacity:0;pointer-events:none;
+    transition:opacity .25s;z-index:100
+  }
+  .toast.show{opacity:1}
+  .remember{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.83rem;color:var(--muted);cursor:pointer}
+  .remember input{width:16px;height:16px;accent-color:var(--sage)}
+  .whoToggle{display:flex;gap:6px;margin:0 2px 12px}
+  .whoBtn{flex:1;padding:9px 10px;border-radius:10px;border:1.5px solid var(--line);background:var(--card);
+    font-family:'Karla';font-weight:700;font-size:.85rem;color:var(--muted);cursor:pointer}
+  .whoBtn.on[data-u="valen"]{background:var(--valen);border-color:var(--valen);color:#fff}
+  .whoBtn.on[data-u="consti"]{background:var(--consti);border-color:var(--consti);color:#fff}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important} }
+  @media (min-width:560px){ .statGrid{grid-template-columns:repeat(4,1fr)} }
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="loginScreen">
+  <div class="brand">
+    <h1>Nutri<em>Plan</em></h1>
+    <p>Su plan de alimentación, a mano y con seguimiento</p>
+  </div>
+  <div class="profileGrid">
+    <button class="profileCard" data-user="valen" onclick="pickProfile('valen')">
+      <div class="avatar">V</div>
+      <h3>Valentina</h3>
+      <span>Objetivo: 51.8 kg</span>
+    </button>
+    <button class="profileCard" data-user="consti" onclick="pickProfile('consti')">
+      <div class="avatar">C</div>
+      <h3>Constantino</h3>
+      <span>Recomposición</span>
+    </button>
+  </div>
+  <div id="pinPanel">
+    <h3 id="pinTitle">PIN</h3>
+    <p id="pinSub"></p>
+    <div class="pinRow">
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+      <button class="btn" onclick="submitPin()">Entrar</button>
+    </div>
+    <label class="remember"><input type="checkbox" id="rememberMe" checked> Mantener sesión iniciada en este dispositivo</label>
+    <div class="err" id="pinErr">PIN incorrecto. Probá de nuevo.</div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div class="shell" id="appShell" style="display:none">
+  <header class="appbar">
+    <div class="logo">Nutri<em>Plan</em></div>
+    <button class="userChip" id="userChip" onclick="logout()" title="Cambiar de usuario">
+      <span class="dot" id="chipDot">V</span><span id="chipName">—</span>
+    </button>
+  </header>
+
+  <main>
+    <!-- PLAN -->
+    <section id="view-plan">
+      <div class="dayPills" id="dayPills"></div>
+      <div class="dayHead">
+        <h2 id="dayTitle" class="display">Lunes</h2>
+        <div class="badges" id="dayBadges"></div>
+      </div>
+      <div class="ticket" id="mealTicket"></div>
+      <div class="hint" id="planHint"></div>
+    </section>
+
+    <!-- PESO -->
+    <section id="view-peso" style="display:none">
+      <h2 class="sectionTitle">Registrar peso</h2>
+      <div class="card">
+        <div class="formRow">
+          <div class="field"><label for="wDate">Fecha</label><input type="date" id="wDate"></div>
+          <div class="field"><label for="wKg">Peso (kg)</label><input type="number" id="wKg" step="0.1" min="30" max="250" placeholder="0.0"></div>
+          <button class="btn" onclick="addWeight()">Guardar</button>
+        </div>
+        <p class="hint">Consejo: pesate 1 vez por semana, mismo día y horario (ideal: al despertar).</p>
+      </div>
+      <h2 class="sectionTitle">Historial</h2>
+      <div class="card"><ul class="entryList" id="entryList"></ul></div>
+    </section>
+
+    <!-- EVOLUCIÓN -->
+    <section id="view-stats" style="display:none">
+      <h2 class="sectionTitle">Evolución</h2>
+      <div class="whoToggle">
+        <button class="whoBtn" data-u="valen" onclick="setStatsUser('valen')">Valentina</button>
+        <button class="whoBtn" data-u="consti" onclick="setStatsUser('consti')">Constantino</button>
+      </div>
+      <div class="statGrid" id="statGrid"></div>
+      <div class="chartWrap"><canvas id="chart"></canvas></div>
+      <div class="legendRow"><span class="lv">Valentina</span><span class="lc">Constantino</span></div>
+      <div style="margin-top:16px">
+        <button class="btn ghost small" onclick="openSettings()">⚙ Ajustes (objetivo, días de gym, PIN)</button>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button class="tab active" data-view="plan" onclick="switchView('plan')">🍽 Plan</button>
+    <button class="tab" data-view="peso" onclick="switchView('peso')">⚖ Peso</button>
+    <button class="tab" data-view="stats" onclick="switchView('stats')">📈 Evolución</button>
+  </nav>
+</div>
+
+<!-- ============ SETTINGS ============ -->
+<dialog id="settingsDlg">
+  <h3>Ajustes de <span id="setName"></span></h3>
+  <div class="field" style="margin-bottom:12px">
+    <label for="setTarget">Peso objetivo (kg)</label>
+    <input type="number" id="setTarget" step="0.1" placeholder="opcional">
+  </div>
+  <div id="gymBlock" style="display:none">
+    <label style="font-size:.75rem;font-weight:700;color:var(--muted)">DÍAS DE GIMNASIO</label>
+    <div class="gymDaysRow" id="gymDaysRow"></div>
+    <p class="hint">Los días de gym el plan te marca porción completa de carbohidratos; los de descanso, media porción.</p>
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label for="setPin">Cambiar PIN (4 dígitos)</label>
+    <input type="password" id="setPin" inputmode="numeric" maxlength="4" placeholder="dejar vacío para no cambiar">
+  </div>
+  <div class="modalActions">
+    <button class="btn ghost" onclick="document.getElementById('settingsDlg').close()">Cancelar</button>
+    <button class="btn" onclick="saveSettings()">Guardar</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =================== DATA =================== */
+const DAY_NAMES = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+const DAY_SHORT = ['LUN','MAR','MIÉ','JUE','VIE','SÁB','DOM'];
+
+const PLAN = [
+ { // Lunes — gym por defecto
+  office:{consti:true,valen:false}, fish:false, batch:false,
+  meals:[
+   {k:'Desayuno',t:'7–9h',d:'Yogur natural o proteico con avena, banana y 1 cda de chía', nc:'+ 2 huevos o ½ scoop de whey'},
+   {k:'Media mañana',t:'11h',d:'1 fruta', nc:'+ puñado de maní sin sal'},
+   {k:'Almuerzo',t:'13h · vianda C',d:'Bowl de pollo grillado con arroz integral o quinoa, verduras asadas y ¼ de palta', nv:'½ taza de arroz/quinoa', nc:'1.5 porciones de pollo · arroz: CARB'},
+   {k:'Merienda',t:'17h',d:'Tostada integral con ricota y tomate, o yogur'},
+   {k:'Cena',t:'21h',d:'Omelette de 2–3 huevos con espinaca y queso + ensalada', nv:'2 huevos', nc:'3 huevos + 1 rebanada de pan integral'}
+  ]},
+ { // Martes
+  office:{consti:true,valen:true}, fish:true, batch:false,
+  meals:[
+   {k:'Desayuno',t:'7–9h',d:'Pancakes de avena y huevo (avena + 2 huevos + banana, licuado)', nc:'+ ½ scoop de whey en la mezcla'},
+   {k:'Media mañana',t:'11h',d:'Yogur proteico (YoPro / Ser Protein)'},
+   {k:'Almuerzo',t:'13h · vianda ambos',d:'Ensalada de lentejas con atún al natural, huevo duro y verduras asadas', nv:'½ taza de lentejas', nc:'lentejas: CARB · atún extra'},
+   {k:'Merienda',t:'17h',d:'1 fruta + frutos secos'},
+   {k:'Cena',t:'21h',d:'🐟 Merluza al horno con puré de calabaza y brócoli', nv:'porción de merluza', nc:'porción grande + puré: CARB'}
+  ]},
+ { // Miércoles
+  office:{consti:true,valen:false}, fish:false, batch:true,
+  meals:[
+   {k:'Desayuno',t:'7–9h',d:'Yogur con granola sin azúcar y kiwi', nc:'+ 2 huevos revueltos'},
+   {k:'Media mañana',t:'11h',d:'1 fruta'},
+   {k:'Almuerzo',t:'13h · vianda C',d:'Wrap integral de pollo o carne desmechada con vegetales y hummus', nv:'1 wrap', nc:'2 wraps: CARB'},
+   {k:'Merienda',t:'17h',d:'Huevo duro + galletas de arroz con queso blanco'},
+   {k:'Cena',t:'21h',d:'Bolognesa magra con pasta de legumbres o fideos integrales + ensalada', nv:'½ plato de pasta', nc:'plato: CARB · carne extra'}
+  ]},
+ { // Jueves — gym por defecto
+  office:{consti:true,valen:false}, fish:false, batch:false,
+  meals:[
+   {k:'Desayuno',t:'7–9h',d:'2–3 huevos revueltos con tostada integral y tomate', nv:'2 huevos, 1 tostada', nc:'3 huevos, 2 tostadas'},
+   {k:'Media mañana',t:'11h',d:'Yogur o fruta'},
+   {k:'Almuerzo',t:'13h · vianda C',d:'Ensalada de atún con arroz integral, huevo duro, chauchas y palta', nv:'½ taza de arroz', nc:'arroz: CARB'},
+   {k:'Merienda',t:'17h',d:'Yogur con chía, o barra proteica'},
+   {k:'Cena',t:'21h',d:'Salteado de pollo y verduras al wok con arroz', nv:'½ taza de arroz', nc:'arroz: CARB'}
+  ]},
+ { // Viernes
+  office:{consti:false,valen:false}, fish:true, batch:false,
+  meals:[
+   {k:'Desayuno',t:'8–10h',d:'Pancakes de avena con 1 cda de mantequilla de maní', nc:'+ whey en la mezcla'},
+   {k:'Media mañana',t:'11h',d:'1 fruta'},
+   {k:'Almuerzo',t:'13h',d:'Milanesa de pollo o carne AL HORNO con ensalada grande', nv:'1 milanesa', nc:'1.5 milanesas + batata: CARB'},
+   {k:'Merienda',t:'17h',d:'Tostada integral con palta y huevo'},
+   {k:'Cena',t:'21h',d:'🐟 Trucha, salmón o merluza a la plancha con quinoa y verduras asadas', nv:'½ taza de quinoa', nc:'quinoa: CARB'}
+  ]},
+ { // Sábado — gym por defecto
+  office:{consti:false,valen:false}, fish:false, batch:false,
+  meals:[
+   {k:'Desayuno',t:'9–11h',d:'Huevos revueltos con tostadas integrales y palta', nv:'2 huevos, 1 tostada', nc:'3 huevos, 2 tostadas'},
+   {k:'Media mañana',t:'12h',d:'Yogur'},
+   {k:'Almuerzo',t:'13–14h',d:'Bife magro (nalga, cuadril, lomo) a la plancha con ensalada + choclo o papa', nv:'½ taza de choclo/papa', nc:'porción grande: CARB'},
+   {k:'Merienda',t:'17h',d:'1 fruta + frutos secos'},
+   {k:'Cena',t:'21h+',d:'🍽 Social / libre planificada — si salen: plato con proteína visible + verduras. Una comida no arruina la semana; el resto la construye.'}
+  ]},
+ { // Domingo
+  office:{consti:false,valen:false}, fish:true, batch:true,
+  meals:[
+   {k:'Desayuno',t:'9–11h',d:'Yogur con granola y frutas', nc:'+ 2 huevos'},
+   {k:'Media mañana',t:'12h',d:'1 fruta'},
+   {k:'Almuerzo',t:'13–14h',d:'Asado magro sin grasa visible (vacío desgrasado, pollo, matambrito) sin achuras, con ensaladas variadas', nc:'+ papa al rescoldo: CARB'},
+   {k:'Merienda',t:'17h',d:'Ricota batida con cacao amargo y stevia + banana (postre proteico)'},
+   {k:'Cena',t:'21h',d:'🐟 Liviana: sopa de verduras + tortilla de atún, o ensalada tibia de garbanzos con huevo'}
+  ]}
+];
+
+const PROFILES_META = {
+  valen:{name:'Valentina', letter:'V', color:'#B04A6E', height:1.61},
+  consti:{name:'Constantino', letter:'C', color:'#2E6E6A', height:1.88}
+};
+
+const DEFAULT_STATE = {
+  profiles:{
+    valen:{pin:null, target:51.8},
+    consti:{pin:null, target:null, gymDays:[0,3,5]} // L, J, S por defecto
+  },
+  weights:{ valen:[], con:[], consti:[] }
+};
+
+/* =================== STORAGE =================== */
+const KEY='nutriplan:data';
+const store={
+  async get(){
+    if(window.storage){ try{ const r=await window.storage.get(KEY,true); return r?JSON.parse(r.value):null; }catch(e){ return null; } }
+    try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; }
+  },
+  async set(state){
+    const s=JSON.stringify(state);
+    if(window.storage){ try{ await window.storage.set(KEY,s,true); return; }catch(e){} }
+    try{ localStorage.setItem(KEY,s); }catch(e){}
+  }
+};
+
+let STATE=null, currentUser=null, pendingUser=null, selectedDay=todayIdx(), chartRef=null, statsUser=null;
+
+function todayIdx(){ return (new Date().getDay()+6)%7; } // Lunes=0
+
+/* ---- sesión recordada (por dispositivo si hay localStorage; si no, por cuenta) ---- */
+const SKEY='nutriplan:session';
+const session={
+  get(){
+    try{ const v=localStorage.getItem(SKEY); if(v) return JSON.parse(v); }catch(e){}
+    return session._mem||null;
+  },
+  async getAsync(){
+    const local=session.get(); if(local) return local;
+    if(window.storage){ try{ const r=await window.storage.get(SKEY,false); return r?JSON.parse(r.value):null; }catch(e){ return null; } }
+    return null;
+  },
+  async set(v){
+    session._mem=v;
+    try{ localStorage.setItem(SKEY,JSON.stringify(v)); return; }catch(e){}
+    if(window.storage){ try{ await window.storage.set(SKEY,JSON.stringify(v),false); }catch(e){} }
+  },
+  async clear(){
+    session._mem=null;
+    try{ localStorage.removeItem(SKEY); }catch(e){}
+    if(window.storage){ try{ await window.storage.delete(SKEY,false); }catch(e){} }
+  }
+};
+
+/* =================== LOGIN =================== */
+async function init(){
+  STATE = (await store.get()) || JSON.parse(JSON.stringify(DEFAULT_STATE));
+  // migraciones suaves
+  if(!STATE.weights.consti && STATE.weights.con) STATE.weights.consti = STATE.weights.con;
+  if(!STATE.weights.valen) STATE.weights.valen=[];
+  if(!STATE.weights.consti) STATE.weights.consti=[];
+  // auto-login si hay sesión recordada
+  const s=await session.getAsync();
+  if(s && s.user && STATE.profiles[s.user]) enter(s.user);
+}
+init();
+
+function pickProfile(u){
+  pendingUser=u;
+  const meta=PROFILES_META[u], prof=STATE.profiles[u];
+  const panel=document.getElementById('pinPanel');
+  panel.classList.add('open');
+  document.getElementById('pinTitle').textContent = prof.pin ? `Hola, ${meta.name}` : `Creá tu PIN, ${meta.name}`;
+  document.getElementById('pinSub').textContent = prof.pin
+    ? 'Ingresá tu PIN de 4 dígitos.'
+    : 'Primera vez: elegí un PIN de 4 dígitos para proteger tu perfil.';
+  document.getElementById('pinErr').style.display='none';
+  const inp=document.getElementById('pinInput'); inp.value=''; inp.focus();
+}
+
+async function submitPin(){
+  const pin=document.getElementById('pinInput').value.trim();
+  if(!/^\d{4}$/.test(pin)){ showErr('El PIN debe tener 4 dígitos.'); return; }
+  const prof=STATE.profiles[pendingUser];
+  const ok = prof.pin===null || prof.pin===pin;
+  if(prof.pin===null){ prof.pin=pin; await store.set(STATE); }
+  if(ok){
+    if(document.getElementById('rememberMe').checked) await session.set({user:pendingUser});
+    else await session.clear();
+    enter(pendingUser);
+  }
+  else showErr('PIN incorrecto. Probá de nuevo.');
+}
+document.getElementById('pinInput').addEventListener('keydown',e=>{ if(e.key==='Enter') submitPin(); });
+function showErr(msg){ const el=document.getElementById('pinErr'); el.textContent=msg; el.style.display='block'; }
+
+function enter(u){
+  currentUser=u; statsUser=u;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appShell').style.display='flex';
+  const meta=PROFILES_META[u];
+  const chip=document.getElementById('userChip');
+  chip.dataset.user=u;
+  document.getElementById('chipDot').textContent=meta.letter;
+  document.getElementById('chipName').textContent=meta.name;
+  document.getElementById('wDate').value=new Date().toISOString().slice(0,10);
+  renderAll();
+}
+async function logout(){
+  await session.clear();
+  currentUser=null; pendingUser=null;
+  document.getElementById('appShell').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('pinPanel').classList.remove('open');
+}
+
+/* =================== TABS =================== */
+function switchView(v){
+  ['plan','peso','stats'].forEach(x=>{
+    document.getElementById('view-'+x).style.display = x===v?'block':'none';
+    document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
+  });
+  if(v==='peso') renderEntries();
+  if(v==='stats') renderStats();
+}
+
+/* =================== PLAN =================== */
+function renderAll(){ renderPills(); renderDay(); renderEntries(); renderStats(); }
+
+function renderPills(){
+  const wrap=document.getElementById('dayPills'); wrap.innerHTML='';
+  DAY_SHORT.forEach((d,i)=>{
+    const b=document.createElement('button');
+    b.className='dayPill'+(i===selectedDay?' active':'')+(i===todayIdx()?' today':'');
+    b.innerHTML=`${d}<small>${i===todayIdx()?'hoy':'&nbsp;'}</small>`;
+    b.onclick=()=>{ selectedDay=i; renderPills(); renderDay(); };
+    wrap.appendChild(b);
+  });
+}
+
+function isGymDay(i){ return (STATE.profiles.consti.gymDays||[]).includes(i); }
+
+function renderDay(){
+  const day=PLAN[selectedDay];
+  document.getElementById('dayTitle').textContent=DAY_NAMES[selectedDay];
+  const badges=[];
+  if(day.office.consti) badges.push('<span class="badge">🏢 Consti oficina</span>');
+  if(day.office.valen) badges.push('<span class="badge">🏢 Valen oficina</span>');
+  if(day.fish) badges.push('<span class="badge fish">🐟 Pescado</span>');
+  if(day.batch) badges.push('<span class="badge batch">🍳 Batch cooking</span>');
+  badges.push(isGymDay(selectedDay)
+    ? '<span class="badge gym">🏋️ Gym Consti · carbos completos</span>'
+    : '<span class="badge gym">😴 Descanso Consti · ½ carbos</span>');
+  document.getElementById('dayBadges').innerHTML=badges.join('');
+
+  const ticket=document.getElementById('mealTicket'); ticket.innerHTML='';
+  day.meals.forEach(m=>{
+    const chips=[];
+    if(m.nv) chips.push({cls:'valen', who:'valen', txt:`V: ${m.nv}`});
+    if(m.nc){
+      let txt=m.nc;
+      if(txt.includes('CARB')) txt = txt.replace(': CARB', isGymDay(selectedDay)?' (porción completa)':' (½ porción hoy)');
+      chips.push({cls:'consti', who:'consti', txt:`C: ${txt}`});
+    }
+    chips.sort((a,b)=>(a.who===currentUser?-1:0)-(b.who===currentUser?-1:0));
+    const notes=chips.map(c=>`<span class="note ${c.cls}">${c.txt}</span>`).join(' ');
+    ticket.insertAdjacentHTML('beforeend',
+      `<div class="meal"><div class="label"><span>${m.k}</span><span class="time">${m.t}</span></div>
+       <div class="dish">${m.d}</div>${notes?'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:2px">'+notes+'</div>':''}</div>`);
+  });
+
+  document.getElementById('planHint').innerHTML = currentUser==='consti'
+    ? '💊 Creatina: 3–5 g hoy (todos los días, con abundante agua). Meta de proteína: ~140–160 g.'
+    : '💧 2 litros de agua por día · fruta como postre · comé despacio.';
+}
+
+/* =================== PESO =================== */
+async function addWeight(){
+  const d=document.getElementById('wDate').value;
+  const w=parseFloat(document.getElementById('wKg').value);
+  if(!d || !w || w<30 || w>250){ toast('Revisá la fecha y el peso'); return; }
+  const arr=STATE.weights[currentUser];
+  const existing=arr.findIndex(e=>e.d===d);
+  if(existing>=0) arr[existing].w=w; else arr.push({d,w});
+  arr.sort((a,b)=>a.d.localeCompare(b.d));
+  await store.set(STATE);
+  document.getElementById('wKg').value='';
+  toast('Peso guardado ✓');
+  renderEntries(); renderStats();
+}
+
+async function delWeight(d){
+  const arr=STATE.weights[currentUser];
+  STATE.weights[currentUser]=arr.filter(e=>e.d!==d);
+  await store.set(STATE);
+  renderEntries(); renderStats();
+}
+
+function fmtDate(iso){
+  const [y,m,dd]=iso.split('-');
+  return `${dd}/${m}/${y.slice(2)}`;
+}
+
+function renderEntries(){
+  if(!currentUser) return;
+  const ul=document.getElementById('entryList');
+  const arr=[...STATE.weights[currentUser]].reverse();
+  if(!arr.length){ ul.innerHTML='<div class="empty">Todavía no cargaste ningún peso.<br>Arrancá hoy para ver tu evolución 📈</div>'; return; }
+  ul.innerHTML=arr.map((e,i)=>{
+    const prev=arr[i+1];
+    let delta='';
+    if(prev){
+      const diff=+(e.w-prev.w).toFixed(1);
+      const cls=diff<0?'down':diff>0?'up':'flat';
+      const sign=diff>0?'+':'';
+      delta=`<span class="delta ${cls}">${sign}${diff} kg</span>`;
+    }
+    return `<li><span class="num">${fmtDate(e.d)}</span>${delta}
+      <span class="w num">${e.w.toFixed(1)} kg</span>
+      <button class="del" title="Borrar" onclick="delWeight('${e.d}')">✕</button></li>`;
+  }).join('');
+}
+
+/* =================== STATS =================== */
+function weekRate(arr){
+  if(arr.length<2) return null;
+  const last=arr[arr.length-1];
+  const cutoff=new Date(last.d); cutoff.setDate(cutoff.getDate()-28);
+  const ciso=cutoff.toISOString().slice(0,10);
+  let ref=arr[0];
+  for(const e of arr){ if(e.d>=ciso){ ref=e; break; } ref=e; }
+  if(ref.d===last.d) ref=arr[0];
+  const days=(new Date(last.d)-new Date(ref.d))/86400000;
+  if(days<=0) return null;
+  return +((last.w-ref.w)/(days/7)).toFixed(2);
+}
+
+function setStatsUser(u){ statsUser=u; renderStats(); }
+
+function renderStats(){
+  if(!currentUser) return;
+  if(!statsUser) statsUser=currentUser;
+  document.querySelectorAll('.whoBtn').forEach(b=>b.classList.toggle('on', b.dataset.u===statsUser));
+  const meta=PROFILES_META[statsUser];
+  const prof=STATE.profiles[statsUser];
+  const arr=STATE.weights[statsUser];
+  const grid=document.getElementById('statGrid');
+
+  if(!arr.length){
+    grid.innerHTML='<div class="stat" style="grid-column:1/-1"><div class="k">Sin datos</div><div class="s">Todavía no hay pesos cargados para este perfil.</div></div>';
+  } else {
+    const last=arr[arr.length-1], first=arr[0];
+    const bmi=last.w/(meta.height*meta.height);
+    const total=+(last.w-first.w).toFixed(1);
+    const rate=weekRate(arr);
+    let proj='—', projS='definí un objetivo en ajustes';
+    if(prof.target && rate!==null && rate<-0.05 && last.w>prof.target){
+      const weeks=Math.ceil((last.w-prof.target)/Math.abs(rate));
+      const dt=new Date(); dt.setDate(dt.getDate()+weeks*7);
+      proj=dt.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+      projS=`~${weeks} semanas al ritmo actual`;
+    } else if(prof.target){
+      projS = last.w<=prof.target ? '¡objetivo alcanzado! 🎉' : 'se necesita más historial';
+      if(last.w<=prof.target) proj='✓';
+    }
+    grid.innerHTML=`
+      <div class="stat"><div class="k">Actual</div><div class="v num">${last.w.toFixed(1)}</div><div class="s">kg · ${fmtDate(last.d)}</div></div>
+      <div class="stat"><div class="k">Cambio total</div><div class="v num">${total>0?'+':''}${total}</div><div class="s">kg desde el inicio</div></div>
+      <div class="stat"><div class="k">Ritmo</div><div class="v num">${rate===null?'—':(rate>0?'+':'')+rate}</div><div class="s">kg/semana (últ. 4 sem)</div></div>
+      <div class="stat"><div class="k">IMC</div><div class="v num">${bmi.toFixed(1)}</div><div class="s">${prof.target?`objetivo: ${prof.target} kg`:'sin objetivo'}</div></div>
+      ${prof.target?`<div class="stat" style="grid-column:1/-1"><div class="k">Proyección al objetivo</div><div class="v">${proj}</div><div class="s">${projS}</div></div>`:''}
+    `;
+  }
+  renderChart();
+}
+
+function renderChart(){
+  const ctx=document.getElementById('chart');
+  if(chartRef) chartRef.destroy();
+  const ds=[];
+  const mk=(u)=>{
+    const meta=PROFILES_META[u];
+    const arr=STATE.weights[u];
+    if(!arr.length) return null;
+    return {
+      label:meta.name,
+      data:arr.map(e=>({x:e.d,y:e.w})),
+      borderColor:meta.color, backgroundColor:meta.color,
+      tension:.3, pointRadius:4, pointHoverRadius:6, borderWidth:2.5
+    };
+  };
+  const dv=mk('valen'), dc=mk('consti');
+  if(dv) ds.push(dv); if(dc) ds.push(dc);
+  const tgtV=STATE.profiles.valen.target, tgtC=STATE.profiles.consti.target;
+  if(tgtV && dv) ds.push({label:'Objetivo V',data:dv.data.map(p=>({x:p.x,y:tgtV})),borderColor:'#B04A6E55',borderDash:[6,6],pointRadius:0,borderWidth:1.5});
+  if(tgtC && dc) ds.push({label:'Objetivo C',data:dc.data.map(p=>({x:p.x,y:tgtC})),borderColor:'#2E6E6A55',borderDash:[6,6],pointRadius:0,borderWidth:1.5});
+
+  chartRef=new Chart(ctx,{
+    type:'line',
+    data:{datasets:ds},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'nearest',intersect:false},
+      plugins:{ legend:{display:false},
+        tooltip:{callbacks:{ title:(items)=>fmtDate(items[0].raw.x), label:(item)=>`${item.dataset.label}: ${item.raw.y} kg` }}
+      },
+      scales:{
+        x:{type:'category',labels:mergedDates(),grid:{display:false},ticks:{maxTicksLimit:7,font:{family:'Karla'},callback:function(v){return fmtDate(this.getLabelForValue(v));}}},
+        y:{grid:{color:'#EDEAE0'},ticks:{font:{family:'Karla'},callback:v=>v+' kg'}}
+      },
+      parsing:{xAxisKey:'x',yAxisKey:'y'}
+    }
+  });
+}
+function mergedDates(){
+  const s=new Set([...STATE.weights.valen.map(e=>e.d),...STATE.weights.consti.map(e=>e.d)]);
+  return [...s].sort();
+}
+
+/* =================== SETTINGS =================== */
+function openSettings(){
+  const dlg=document.getElementById('settingsDlg');
+  const prof=STATE.profiles[currentUser];
+  document.getElementById('setName').textContent=PROFILES_META[currentUser].name;
+  document.getElementById('setTarget').value=prof.target??'';
+  document.getElementById('setPin').value='';
+  const gymBlock=document.getElementById('gymBlock');
+  if(currentUser==='consti'){
+    gymBlock.style.display='block';
+    const row=document.getElementById('gymDaysRow'); row.innerHTML='';
+    DAY_SHORT.forEach((d,i)=>{
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='gymDay'+((prof.gymDays||[]).includes(i)?' on':'');
+      b.textContent=d;
+      b.onclick=()=>b.classList.toggle('on');
+      row.appendChild(b);
+    });
+  } else gymBlock.style.display='none';
+  dlg.showModal();
+}
+
+async function saveSettings(){
+  const prof=STATE.profiles[currentUser];
+  const t=parseFloat(document.getElementById('setTarget').value);
+  prof.target = isNaN(t)?null:t;
+  const pin=document.getElementById('setPin').value.trim();
+  if(pin){ if(!/^\d{4}$/.test(pin)){ toast('El PIN debe tener 4 dígitos'); return; } prof.pin=pin; }
+  if(currentUser==='consti'){
+    prof.gymDays=[...document.querySelectorAll('#gymDaysRow .gymDay')].map((b,i)=>b.classList.contains('on')?i:-1).filter(i=>i>=0);
+  }
+  await store.set(STATE);
+  document.getElementById('settingsDlg').close();
+  toast('Ajustes guardados ✓');
+  renderAll();
+}
+
+/* =================== UTIL =================== */
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+</script>
+</body>
+</html>
