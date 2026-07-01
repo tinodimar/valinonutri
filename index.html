@@ -289,24 +289,24 @@
       </div>
       <div class="ticket" id="mealTicket"></div>
       <div class="hint" id="planHint"></div>
-    </section>
 
-    <!-- CHEF -->
-    <section id="view-chef" style="display:none">
-      <h2 class="sectionTitle">Chef del plan</h2>
-      <div class="chatBox">
-        <div class="chatMsgs" id="chatMsgs"></div>
-        <div class="chipRow" id="chipRow">
-          <button class="sugChip" onclick="chipSend('No me gusta una comida del plan, quiero reemplazarla')">Reemplazar una comida</button>
-          <button class="sugChip" onclick="chipSend('Sugerime una cena más rápida de preparar')">Cena más rápida</button>
-          <button class="sugChip" onclick="chipSend('Quiero una opción vegetariana para algún almuerzo')">Opción veggie</button>
+      <!-- CHEF (dentro del Plan) -->
+      <button class="btn ghost" id="chefToggle" style="width:100%;margin-top:16px" onclick="toggleChef()">🧑‍🍳 Sugerir cambios al chef</button>
+      <div id="chefPanel" style="display:none;margin-top:10px">
+        <div class="chatBox">
+          <div class="chatMsgs" id="chatMsgs"></div>
+          <div class="chipRow" id="chipRow">
+            <button class="sugChip" onclick="chipSend('No me gusta una comida del plan, quiero reemplazarla')">Reemplazar una comida</button>
+            <button class="sugChip" onclick="chipSend('Sugerime una cena más rápida de preparar')">Cena más rápida</button>
+            <button class="sugChip" onclick="chipSend('Quiero una opción vegetariana para algún almuerzo')">Opción veggie</button>
+          </div>
+          <div class="chatInput">
+            <input id="chatText" placeholder="Ej: cambiá la merluza del martes por otra cosa…" onkeydown="if(event.key==='Enter')sendChat()">
+            <button class="btn" id="chatSend" onclick="sendChat()">Enviar</button>
+          </div>
         </div>
-        <div class="chatInput">
-          <input id="chatText" placeholder="Ej: cambiá la merluza del martes por otra cosa…" onkeydown="if(event.key==='Enter')sendChat()">
-          <button class="btn" id="chatSend" onclick="sendChat()">Enviar</button>
-        </div>
+        <p class="hint">El chef conoce el plan, los objetivos y porciones de cada uno. Sus reemplazos se aplican al menú de los dos con un toque; toda comida modificada se restaura con ↺ desde la receta.</p>
       </div>
-      <p class="hint">El chef conoce el plan completo, los objetivos y porciones de cada uno. Puede proponer reemplazos concretos que se aplican al menú de los dos con un toque. Las comidas modificadas se pueden restaurar desde la receta con ↺.</p>
     </section>
 
     <!-- PESO -->
@@ -342,7 +342,6 @@
 
   <nav class="tabs">
     <button class="tab active" data-view="plan" onclick="switchView('plan')">🍽 Plan</button>
-    <button class="tab" data-view="chef" onclick="switchView('chef')">🧑‍🍳 Chef</button>
     <button class="tab" data-view="peso" onclick="switchView('peso')">⚖ Peso</button>
     <button class="tab" data-view="stats" onclick="switchView('stats')">📈 Evolución</button>
   </nav>
@@ -563,15 +562,12 @@ async function logout(){
 
 /* =================== TABS =================== */
 function switchView(v){
-  ['plan','chef','peso','stats'].forEach(x=>{
+  ['plan','peso','stats'].forEach(x=>{
     document.getElementById('view-'+x).style.display = x===v?'block':'none';
     document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
   });
   if(v==='peso') renderEntries();
   if(v==='stats') renderStats();
-  if(v==='chef' && !document.getElementById('chatMsgs').children.length){
-    pushBubble('bot',`Hola ${PROFILES_META[currentUser].name.split(' ')[0]} 👋 Soy el chef del plan. Contame qué querés cambiar del menú — puedo proponerte reemplazos con receta y calorías equivalentes, y aplicarlos directo.`);
-  }
 }
 
 /* =================== PLAN =================== */
@@ -725,6 +721,17 @@ Reglas:
 - Al reemplazar una comida, mantené kcal similares (±15%) a la que reemplazás, misma lógica de proteína, e ingredientes con gramos.
 - "kc" puede ser número o [kcalDíaGym, kcalDíaDescanso] si el plato lleva carbohidratos variables.
 - Máximo 3 changes por respuesta. No cambies el desayuno salvo pedido explícito (es fijo a propósito).`;
+}
+
+function toggleChef(){
+  const p=document.getElementById('chefPanel');
+  const open = p.style.display==='none';
+  p.style.display = open ? 'block' : 'none';
+  document.getElementById('chefToggle').textContent = open ? '🧑‍🍳 Ocultar chef' : '🧑‍🍳 Sugerir cambios al chef';
+  if(open && !document.getElementById('chatMsgs').children.length){
+    pushBubble('bot',`Hola ${PROFILES_META[currentUser].name.split(' ')[0]} 👋 Soy el chef del plan. Contame qué querés cambiar del menú — puedo proponerte reemplazos con receta y calorías equivalentes, y aplicarlos directo.`);
+  }
+  if(open) p.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function chipSend(t){ document.getElementById('chatText').value=t; sendChat(); }
