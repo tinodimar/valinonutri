@@ -572,25 +572,15 @@ const store={
   async set(state){
     const s=JSON.stringify(state);
     if(window.storage){ try{ await window.storage.set(KEY,s,true); return; }catch(e){} }
-    // guardar siempre local (cache/offline)
+    // guardar siempre local (cache/offline) — incluye shopping para uso offline
     try{ localStorage.setItem(KEY,s); }catch(e){}
-    // y SIEMPRE empujar al backend cuando estamos publicados,
-    // preservando los tildes de compras que ya haya en la nube (para no pisarlos)
+    // subir al backend el estado general SIN shopping (shopping vive en /api/shopping)
     if(USE_BACKEND){
       try{
-        let toSave=state;
-        try{
-          const rr=await fetch('/api/state');
-          const remote=await rr.json();
-          if(remote && !remote._noBackend && remote.shopping){
-            const mergedShopping={...remote.shopping, ...(state.shopping||{})};
-            toSave={...state, shopping:mergedShopping};
-          }
-        }catch(e){}
-        const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:toSave})});
-        const j=await r.json().catch(()=>({}));
-        SYNC_STATUS = r.ok && j.ok ? 'backend OK · guardado' : ('guardado falló: '+(j.error||('HTTP '+r.status)));
-      }catch(e){ SYNC_STATUS='error al guardar: '+String(e).slice(0,60); }
+        const {shopping, ...rest}=state; // excluir shopping del guardado general
+        const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:rest})});
+        await r.json().catch(()=>({}));
+      }catch(e){}
     }
   },
   // Refresca desde el backend y aplica si cambió (para sincronizar compras entre dispositivos)
@@ -1103,51 +1093,43 @@ function renderShopping(){
     const doneCount=c.items.filter((_,ii)=>checked[ci+'-'+ii]).length;
     return `<div class="shopCat"><h4>${c.cat}<span>${doneCount}/${total}</span></h4>${rows}</div>`;
   }).join('');
-  const ss=document.getElementById('syncStatus'); if(ss) ss.textContent='Sync: '+SYNC_STATUS+' · shared='+JSON.stringify((STATE.shopping&&STATE.shopping.shared)||{});
+  const ss=document.getElementById('syncStatus'); if(ss) ss.textContent='Sync: '+SYNC_STATUS+' · '+JSON.stringify((STATE.shopping&&STATE.shopping[shopScope()])||{});
 }
 
 async function toggleShop(key){
   const scope=shopScope();
   if(!STATE.shopping) STATE.shopping={};
   if(!STATE.shopping[scope]) STATE.shopping[scope]={};
-  // 1) Aplicar de inmediato y redibujar
   if(STATE.shopping[scope][key]) delete STATE.shopping[scope][key]; else STATE.shopping[scope][key]=1;
   renderShopping();
-  // 2) Guardar local
   try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
-  // 3) Subir al backend (sin debounce; cada tilde persiste)
   if(USE_BACKEND) pushShopping(scope);
 }
 
-// Sube al backend el estado completo, preservando lo remoto y sobreescribiendo
-// solo los tildes de compras de este grupo con los locales.
+// Guarda los tildes de este scope en el endpoint DEDICADO (aislado del resto).
 function pushShopping(scope){
   (async ()=>{
     try{
-      const r=await fetch('/api/state');
-      const remote=await r.json();
-      const base=(remote && !remote._noBackend && typeof remote==='object' && Object.keys(remote).length)
-        ? remote : JSON.parse(JSON.stringify(STATE));
-      base.shopping = base.shopping || {};
-      base.shopping[scope] = {...(STATE.shopping[scope]||{})};
-      const pr=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:base})});
-      const pj=await pr.json().catch(()=>({}));
-      SYNC_STATUS = pr.ok && pj.ok ? 'backend OK · compras guardadas' : ('guardado falló: '+(pj.error||('HTTP '+pr.status)));
-    }catch(e){ SYNC_STATUS='error al guardar: '+String(e).slice(0,60); }
-    const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
+      const checks=(STATE.shopping&&STATE.shopping[scope])||{};
+      const r=await fetch('/api/shopping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope,checks})});
+      const j=await r.json().catch(()=>({}));
+      if(j&&j._noBackend) SYNC_STATUS='sin backend (falta KV)';
+      else SYNC_STATUS = r.ok && j.ok ? 'guardado ✓' : ('falló: '+(j.error||('HTTP '+r.status)));
+    }catch(e){ SYNC_STATUS='error: '+String(e).slice(0,50); }
+    const el=document.getElementById('syncStatus'); if(el) el.textContent='Sync: '+SYNC_STATUS+' · '+JSON.stringify((STATE.shopping&&STATE.shopping[shopScope()])||{});
   })();
 }
 
-// Trae del backend los tildes del grupo actual y los aplica (para ver cambios de otro dispositivo).
+// Trae del endpoint dedicado los tildes del scope actual y los aplica.
 async function pullShopping(){
   if(!USE_BACKEND) return;
   const scope=shopScope();
   try{
-    const r=await fetch('/api/state');
-    const remote=await r.json();
-    if(remote && !remote._noBackend && remote.shopping && remote.shopping[scope] && Object.keys(remote.shopping[scope]).length){
+    const r=await fetch('/api/shopping');
+    const all=await r.json();
+    if(all && !all._noBackend){
       if(!STATE.shopping) STATE.shopping={};
-      STATE.shopping[scope]=remote.shopping[scope];
+      STATE.shopping[scope]= all[scope] || {};
       try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
       renderShopping();
     }
@@ -1156,7 +1138,8 @@ async function pullShopping(){
 
 async function resetShopping(){
   const scope=shopScope();
-  if(STATE.shopping) STATE.shopping[scope]={};
+  if(!STATE.shopping) STATE.shopping={};
+  STATE.shopping[scope]={};
   renderShopping();
   try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
   if(USE_BACKEND) pushShopping(scope);
