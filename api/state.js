@@ -1,11 +1,6 @@
-// api/state.js — Sincronización de datos entre dispositivos.
-// Usa Vercel KV (Upstash Redis). Guarda un único documento con todo el estado
-// de la app bajo una clave fija. Requiere las variables de entorno que Vercel
-// crea automáticamente al conectar un store de Vercel KV:
-//   KV_REST_API_URL  y  KV_REST_API_TOKEN
-//
-// GET  /api/state          -> devuelve el estado guardado (o {} si no hay)
-// POST /api/state  {state}  -> guarda el estado
+// api/state.js — Sincronización del estado general (perfiles, pesos, menú).
+// Los tildes de compras NO viven acá: están en /api/shopping (aislados).
+// Requiere KV_REST_API_URL y KV_REST_API_TOKEN (las crea Vercel al conectar KV).
 
 const KEY = 'nutritino:state';
 
@@ -23,6 +18,20 @@ async function kv(path, method, body) {
   return r.json();
 }
 
+function toObject(result) {
+  let v = result;
+  for (let i = 0; i < 3; i++) {
+    if (v == null) return {};
+    if (typeof v === 'object') return v;
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v); } catch (e) { return {}; }
+    } else {
+      return {};
+    }
+  }
+  return typeof v === 'object' && v !== null ? v : {};
+}
+
 export default async function handler(req, res) {
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
     return res.status(200).json({ _noBackend: true });
@@ -31,8 +40,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const out = await kv(`get/${KEY}`, 'GET');
-      const val = out && out.result ? JSON.parse(out.result) : {};
-      return res.status(200).json(val);
+      return res.status(200).json(toObject(out && out.result));
     }
     if (req.method === 'POST') {
       const { state } = req.body || {};
