@@ -236,6 +236,30 @@
   .sugChip{border:1.5px solid var(--line);background:var(--paper);border-radius:999px;padding:6px 12px;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer}
   .sugChip:hover{border-color:var(--sage);color:var(--sage)}
   .modBadge{font-size:.65rem;font-weight:700;background:#EAE3F2;color:#6B5CA5;padding:2px 7px;border-radius:999px;margin-left:6px}
+
+  /* usuarios invitados */
+  .profileCard.create{border-style:dashed}
+  #signupPanel{margin-top:22px;background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px;display:none}
+  #signupPanel.open{display:block}
+  #signupPanel h3{font-family:'Fraunces',serif;margin-bottom:4px}
+  #signupPanel > p{font-size:.85rem;color:var(--muted);margin-bottom:14px}
+  #signupPanel select{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);font-family:'Karla';font-size:.92rem}
+
+  .swapNote{margin-top:8px;font-size:.82rem;background:#F3EEF7;border:1px solid #E0D5EC;color:#5a4b78;padding:8px 10px;border-radius:9px;line-height:1.5}
+  .swapNote b{color:#3f3357}
+  #swapDlg textarea{width:100%;min-height:70px;padding:10px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);font-family:'Karla';font-size:.95rem;resize:vertical}
+
+  .shopCat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
+  .shopCat h4{font-family:'Fraunces',serif;font-size:1.02rem;padding:12px 16px;background:var(--sage-soft);color:var(--sage);display:flex;justify-content:space-between;align-items:center}
+  .shopCat h4 span{font-size:.72rem;font-weight:700;color:var(--muted);font-family:'Karla'}
+  .shopItem{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px dashed var(--line);cursor:pointer;font-size:.92rem}
+  .shopItem:last-child{border-bottom:none}
+  .shopItem .box{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#fff}
+  .shopItem.done{color:var(--muted)}
+  .shopItem.done .name{text-decoration:line-through}
+  .shopItem.done .box{background:var(--sage);border-color:var(--sage)}
+  .shopItem .qty{margin-left:auto;font-weight:700;color:var(--muted);font-size:.82rem}
+  .shopItem.done .qty{text-decoration:line-through}
 </style>
 </head>
 <body>
@@ -246,18 +270,7 @@
     <h1>Nutri<em>Plan</em></h1>
     <p>Su plan de alimentación, a mano y con seguimiento</p>
   </div>
-  <div class="profileGrid">
-    <button class="profileCard" data-user="valen" onclick="pickProfile('valen')">
-      <div class="avatar">V</div>
-      <h3>Valentina</h3>
-      <span>Objetivo: 51.8 kg</span>
-    </button>
-    <button class="profileCard" data-user="consti" onclick="pickProfile('consti')">
-      <div class="avatar">C</div>
-      <h3>Constantino</h3>
-      <span>Recomposición</span>
-    </button>
-  </div>
+  <div class="profileGrid" id="profileGrid"></div>
   <div id="pinPanel">
     <h3 id="pinTitle">PIN</h3>
     <p id="pinSub"></p>
@@ -267,6 +280,29 @@
     </div>
     <label class="remember"><input type="checkbox" id="rememberMe" checked> Mantener sesión iniciada en este dispositivo</label>
     <div class="err" id="pinErr">PIN incorrecto. Probá de nuevo.</div>
+  </div>
+
+  <div id="signupPanel">
+    <h3>Crear tu usuario</h3>
+    <p>Tu perfil es privado: solo vos ves tus estadísticas y tus cambios de menú.</p>
+    <div class="field" style="margin-bottom:10px"><label for="suName">Nombre</label><input id="suName" maxlength="20" placeholder="Ej: Mercedes"></div>
+    <div class="formRow" style="margin-bottom:10px">
+      <div class="field"><label for="suHeight">Altura (cm)</label><input id="suHeight" type="number" min="120" max="230" placeholder="170"></div>
+      <div class="field"><label for="suTarget">Peso objetivo (kg, opcional)</label><input id="suTarget" type="number" step="0.1" placeholder="—"></div>
+    </div>
+    <div class="field" style="margin-bottom:10px">
+      <label for="suPlan">Tipo de plan</label>
+      <select id="suPlan">
+        <option value="valen">Déficit — bajar de peso (~1500 kcal, porciones moderadas)</option>
+        <option value="consti">Recomposición — gym + proteína alta (~2100–2300 kcal)</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:4px"><label for="suPin">PIN (4 dígitos)</label><input id="suPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+    <div class="err" id="suErr"></div>
+    <div class="modalActions">
+      <button class="btn ghost" onclick="closeSignup()">Cancelar</button>
+      <button class="btn" onclick="createUser()">Crear y entrar</button>
+    </div>
   </div>
 </div>
 
@@ -309,6 +345,14 @@
       </div>
     </section>
 
+    <!-- COMPRAS -->
+    <section id="view-compras" style="display:none">
+      <h2 class="sectionTitle">Lista de compras semanal</h2>
+      <p class="hint" style="margin:0 2px 12px">🗓️ Hacela los domingos para toda la semana. Generada desde el menú actual (incluye tus cambios del chef). Tocá cada ítem para tacharlo.</p>
+      <div id="shopList"></div>
+      <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetShopping()">↺ Destildar todo</button>
+    </section>
+
     <!-- PESO -->
     <section id="view-peso" style="display:none">
       <h2 class="sectionTitle">Registrar peso</h2>
@@ -342,6 +386,7 @@
 
   <nav class="tabs">
     <button class="tab active" data-view="plan" onclick="switchView('plan')">🍽 Plan</button>
+    <button class="tab" data-view="compras" onclick="switchView('compras')">🛒 Compras</button>
     <button class="tab" data-view="peso" onclick="switchView('peso')">⚖ Peso</button>
     <button class="tab" data-view="stats" onclick="switchView('stats')">📈 Evolución</button>
   </nav>
@@ -366,6 +411,17 @@
   <div class="modalActions">
     <button class="btn ghost" onclick="document.getElementById('settingsDlg').close()">Cancelar</button>
     <button class="btn" onclick="saveSettings()">Guardar</button>
+  </div>
+</dialog>
+
+<dialog id="swapDlg">
+  <h3>Comí otra cosa</h3>
+  <p class="hint" id="swapMeal" style="margin-bottom:10px"></p>
+  <textarea id="swapText" placeholder="Ej: 2 porciones de pizza y una ensalada"></textarea>
+  <p class="hint">Registrar los desvíos sin culpa ayuda a ver patrones — no a castigarse.</p>
+  <div class="modalActions">
+    <button class="btn ghost" onclick="document.getElementById('swapDlg').close()">Cancelar</button>
+    <button class="btn" onclick="saveSwap()">Guardar</button>
   </div>
 </dialog>
 
@@ -445,13 +501,24 @@ const PROFILES_META = {
   consti:{name:'Constantino', letter:'C', color:'#2E6E6A', height:1.88}
 };
 
+const GUEST_COLORS=['#6B5CA5','#C9722E','#3A6B8A','#8A3A5B','#5B7F2E','#A34848','#2E6E9E','#9E6C2E'];
+function isCouple(u){ return u==='valen'||u==='consti'; }
+function getMeta(u){
+  if(PROFILES_META[u]) return PROFILES_META[u];
+  const c=(STATE&&STATE.users)?STATE.users[u]:null;
+  return c?{name:c.name,letter:c.letter,color:c.color,height:c.height}:null;
+}
+function profOf(u){ return (STATE.profiles&&STATE.profiles[u])||(STATE.users&&STATE.users[u]); }
+function portionOf(u){ return isCouple(u)? u : ((STATE.users[u]&&STATE.users[u].portionSet)||'valen'); }
+
 const DEFAULT_STATE = {
   profiles:{
     valen:{pin:null, target:51.8},
     consti:{pin:null, target:null, gymDays:[0,3,5]} // L, J, S por defecto
   },
   weights:{ valen:[], con:[], consti:[] },
-  adherence:{ valen:{}, consti:{} }
+  adherence:{ valen:{}, consti:{} },
+  users:{}
 };
 
 /* =================== STORAGE =================== */
@@ -504,16 +571,75 @@ async function init(){
   if(!STATE.weights.valen) STATE.weights.valen=[];
   if(!STATE.weights.consti) STATE.weights.consti=[];
   if(!STATE.adherence) STATE.adherence={valen:{},consti:{}};
+  if(!STATE.users) STATE.users={};
+  if(!STATE.shopping) STATE.shopping={};
   if(!STATE.overrides) STATE.overrides={};
+  // migrar overrides planos al espacio compartido de la pareja
+  const flat=Object.keys(STATE.overrides).filter(k=>/^\d-\d$/.test(k));
+  if(flat.length){ const sh=STATE.overrides.shared||{}; flat.forEach(k=>{ sh[k]=STATE.overrides[k]; delete STATE.overrides[k]; }); STATE.overrides.shared=sh; }
+  renderLoginGrid();
   // auto-login si hay sesión recordada
   const s=await session.getAsync();
-  if(s && s.user && STATE.profiles[s.user]) enter(s.user);
+  if(s && s.user && profOf(s.user)) enter(s.user);
 }
 init();
 
+function renderLoginGrid(){
+  const g=document.getElementById('profileGrid'); if(!g||!STATE) return;
+  const cards=[];
+  for(const u of ['valen','consti']){
+    const m=PROFILES_META[u];
+    cards.push(`<button class="profileCard" data-user="${u}" onclick="pickProfile('${u}')"><div class="avatar" style="background:${m.color}">${m.letter}</div><h3>${m.name}</h3></button>`);
+  }
+  for(const [id,c] of Object.entries(STATE.users||{})){
+    cards.push(`<button class="profileCard" onclick="pickProfile('${id}')"><div class="avatar" style="background:${c.color}">${c.letter}</div><h3>${c.name}</h3></button>`);
+  }
+  cards.push(`<button class="profileCard create" onclick="openSignup()"><div class="avatar" style="background:var(--muted)">＋</div><h3>Crear usuario</h3></button>`);
+  g.innerHTML=cards.join('');
+}
+
+function openSignup(){
+  document.getElementById('pinPanel').classList.remove('open');
+  document.getElementById('signupPanel').classList.add('open');
+  document.getElementById('suErr').style.display='none';
+  document.getElementById('suName').focus();
+}
+function closeSignup(){ document.getElementById('signupPanel').classList.remove('open'); }
+
+function slug(name){
+  return name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'').slice(0,16)||'user';
+}
+
+async function createUser(){
+  const name=document.getElementById('suName').value.trim();
+  const hCm=parseFloat(document.getElementById('suHeight').value);
+  const target=parseFloat(document.getElementById('suTarget').value);
+  const portionSet=document.getElementById('suPlan').value;
+  const pin=document.getElementById('suPin').value.trim();
+  const err=(m)=>{ const e=document.getElementById('suErr'); e.textContent=m; e.style.display='block'; };
+  if(!name) return err('Poné un nombre.');
+  if(!hCm || hCm<120 || hCm>230) return err('Altura en cm (ej: 170).');
+  if(!/^\d{4}$/.test(pin)) return err('El PIN debe tener 4 dígitos.');
+  let id=slug(name);
+  if(profOf(id)) id=id+Math.floor(Math.random()*90+10);
+  const n=Object.keys(STATE.users).length;
+  STATE.users[id]={
+    name, letter:name[0].toUpperCase(), color:GUEST_COLORS[n%GUEST_COLORS.length],
+    height:+(hCm/100).toFixed(2), pin, target:isNaN(target)?null:target,
+    portionSet, gymDays: portionSet==='consti'?[0,3,5]:[]
+  };
+  STATE.weights[id]=[]; STATE.adherence[id]={};
+  await store.set(STATE);
+  await session.set({user:id});
+  closeSignup(); renderLoginGrid();
+  toast(`¡Bienvenido/a, ${name}!`);
+  enter(id);
+}
+
 function pickProfile(u){
   pendingUser=u;
-  const meta=PROFILES_META[u], prof=STATE.profiles[u];
+  closeSignup();
+  const meta=getMeta(u), prof=profOf(u);
   const panel=document.getElementById('pinPanel');
   panel.classList.add('open');
   document.getElementById('pinTitle').textContent = prof.pin ? `Hola, ${meta.name}` : `Creá tu PIN, ${meta.name}`;
@@ -527,7 +653,7 @@ function pickProfile(u){
 async function submitPin(){
   const pin=document.getElementById('pinInput').value.trim();
   if(!/^\d{4}$/.test(pin)){ showErr('El PIN debe tener 4 dígitos.'); return; }
-  const prof=STATE.profiles[pendingUser];
+  const prof=profOf(pendingUser);
   const ok = prof.pin===null || prof.pin===pin;
   if(prof.pin===null){ prof.pin=pin; await store.set(STATE); }
   if(ok){
@@ -542,12 +668,16 @@ function showErr(msg){ const el=document.getElementById('pinErr'); el.textConten
 
 function enter(u){
   currentUser=u; statsUser=u;
+  if(!STATE.weights[u]) STATE.weights[u]=[];
+  if(!STATE.adherence[u]) STATE.adherence[u]={};
+  if(!chatHistory[u]) chatHistory[u]=[];
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='flex';
-  const meta=PROFILES_META[u];
+  const meta=getMeta(u);
   const chip=document.getElementById('userChip');
   chip.dataset.user=u;
-  document.getElementById('chipDot').textContent=meta.letter;
+  const dot=document.getElementById('chipDot');
+  dot.textContent=meta.letter; dot.style.background=meta.color;
   document.getElementById('chipName').textContent=meta.name;
   document.getElementById('wDate').value=new Date().toISOString().slice(0,10);
   renderAll();
@@ -558,14 +688,17 @@ async function logout(){
   document.getElementById('appShell').style.display='none';
   document.getElementById('loginScreen').style.display='flex';
   document.getElementById('pinPanel').classList.remove('open');
+  closeSignup();
+  renderLoginGrid();
 }
 
 /* =================== TABS =================== */
 function switchView(v){
-  ['plan','peso','stats'].forEach(x=>{
+  ['plan','compras','peso','stats'].forEach(x=>{
     document.getElementById('view-'+x).style.display = x===v?'block':'none';
     document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
   });
+  if(v==='compras') renderShopping();
   if(v==='peso') renderEntries();
   if(v==='stats') renderStats();
 }
@@ -584,16 +717,27 @@ function renderPills(){
   });
 }
 
-function isGymDay(i){ return (STATE.profiles.consti.gymDays||[]).includes(i); }
+function isGymDay(i,u){
+  if(portionOf(u)!=='consti') return false;
+  const p=profOf(u);
+  return ((p&&p.gymDays)||[]).includes(i);
+}
 
-function mealAt(dayIdx,slotIdx){
-  const o=(STATE.overrides||{})[dayIdx+'-'+slotIdx];
+function ovMap(u){
+  if(!STATE.overrides) STATE.overrides={};
+  const key=isCouple(u)?'shared':u;
+  if(!STATE.overrides[key]) STATE.overrides[key]={};
+  return STATE.overrides[key];
+}
+
+function mealAt(dayIdx,slotIdx,u){
+  const o=ovMap(u)[dayIdx+'-'+slotIdx];
   return o || MEALS[PLAN[dayIdx].slots[slotIdx]];
 }
 
 function kcalOf(meal,user,dayIdx){
-  const k = user==='valen' ? meal.kv : meal.kc;
-  if(Array.isArray(k)) return isGymDay(dayIdx)?k[0]:k[1];
+  const k = portionOf(user)==='valen' ? meal.kv : meal.kc;
+  if(Array.isArray(k)) return isGymDay(dayIdx,user)?k[0]:k[1];
   return k;
 }
 
@@ -606,18 +750,28 @@ function dateForDay(i){
 function renderDay(){
   const day=PLAN[selectedDay];
   document.getElementById('dayTitle').textContent=DAY_NAMES[selectedDay];
+  const couple=isCouple(currentUser);
+  const pset=portionOf(currentUser);
 
   const badges=[];
-  if(day.office.consti) badges.push('<span class="badge">🏢 Consti oficina</span>');
-  if(day.office.valen) badges.push('<span class="badge">🏢 Valen oficina</span>');
+  if(couple){
+    if(day.office.consti) badges.push('<span class="badge">🏢 Consti oficina</span>');
+    if(day.office.valen) badges.push('<span class="badge">🏢 Valen oficina</span>');
+  }
   if(day.fish) badges.push('<span class="badge fish">🐟 Pescado</span>');
   if(day.batch) badges.push('<span class="badge batch">🍳 Batch cooking</span>');
-  badges.push(isGymDay(selectedDay)
-    ? '<span class="badge gym">🏋️ Gym Consti · carbos completos</span>'
-    : '<span class="badge gym">😴 Descanso Consti · ½ carbos</span>');
+  if(pset==='consti'){
+    badges.push(isGymDay(selectedDay,currentUser)
+      ? '<span class="badge gym">🏋️ Día de gym · carbos completos</span>'
+      : '<span class="badge gym">😴 Descanso · ½ carbos</span>');
+  } else if(couple){
+    badges.push(isGymDay(selectedDay,'consti')
+      ? '<span class="badge gym">🏋️ Gym Consti · carbos completos</span>'
+      : '<span class="badge gym">😴 Descanso Consti · ½ carbos</span>');
+  }
   document.getElementById('dayBadges').innerHTML=badges.join('');
 
-  const total=day.slots.reduce((s,_,i)=>s+kcalOf(mealAt(selectedDay,i),currentUser,selectedDay),0);
+  const total=day.slots.reduce((s,_,i)=>s+kcalOf(mealAt(selectedDay,i,currentUser),currentUser,selectedDay),0);
   const dateISO=dateForDay(selectedDay);
   const isFuture = dateISO > new Date().toISOString().slice(0,10);
   const adh=(STATE.adherence[currentUser]||{})[dateISO]||{};
@@ -625,21 +779,33 @@ function renderDay(){
   const ticket=document.getElementById('mealTicket'); ticket.innerHTML='';
 
   ticket.insertAdjacentHTML('beforeend',
-    `<div class="meal" style="background:var(--sage-soft)"><div class="dayKcal">Total del día (${PROFILES_META[currentUser].name.split(' ')[0]}): <b class="num">≈ ${total.toLocaleString('es-AR')} kcal</b> · valores estimados</div></div>`);
+    `<div class="meal" style="background:var(--sage-soft)"><div class="dayKcal">Total del día (${getMeta(currentUser).name}): <b class="num">≈ ${total.toLocaleString('es-AR')} kcal</b> · valores estimados</div></div>`);
 
   day.slots.forEach((_,idx)=>{
-    const m=mealAt(selectedDay,idx);
-    const isOverride=!!(STATE.overrides||{})[selectedDay+'-'+idx];
+    const m=mealAt(selectedDay,idx,currentUser);
+    const isOverride=!!ovMap(currentUser)[selectedDay+'-'+idx];
     const kcal=kcalOf(m,currentUser,selectedDay);
-    const time = (idx===2 && day.vianda) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
-    const rows=m.ing.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
+    const time = (idx===2 && day.vianda && couple) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
+
+    let tableHead, rows;
+    if(couple){
+      tableHead='<tr><th>Ingrediente</th><th class="v">Valentina</th><th class="c">Constantino</th></tr>';
+      rows=m.ing.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
+    } else {
+      const col = pset==='valen'?1:2;
+      tableHead='<tr><th>Ingrediente</th><th>Tu porción</th></tr>';
+      rows=m.ing.map(r=>`<tr><td>${r[0]}</td><td class="num">${r[col]}</td></tr>`).join('');
+    }
+
     const st=adh[idx];
+    const swap = st && st.swap ? st.swap : null;
     const adhBtns = isFuture ? '' : `
       <div class="adhWrap">
-        <button class="adhBtn ok ${st==='ok'?'on':''}" onclick="setAdh(${idx},'ok')">✓ Cumplida</button>
-        <button class="adhBtn skip ${st==='skip'?'on':''}" onclick="setAdh(${idx},'skip')">✗ No</button>
+        <button class="adhBtn skip ${swap?'on':''}" onclick="openSwap(${idx})">${swap?'✎ Comí otra cosa':'✗ No cumplí'}</button>
       </div>`;
-    const modBadge=isOverride?`<span class="modBadge">✎ ${PROFILES_META[m.by]?PROFILES_META[m.by].letter:'✎'}</span>`:'';
+    const swapNote = swap ? `<div class="swapNote">En lugar de esto comí: <b>${swap}</b> <button class="rBtn" onclick="clearSwap(${idx})">↺ deshacer</button></div>` : '';
+    const byMeta=m.by?getMeta(m.by):null;
+    const modBadge=isOverride?`<span class="modBadge">✎ ${byMeta?byMeta.letter:'✎'}</span>`:'';
     const restoreBtn=isOverride?`<button class="rBtn" onclick="restoreMeal(${selectedDay},${idx})">↺ Original</button>`:'';
     ticket.insertAdjacentHTML('beforeend',
       `<div class="meal">
@@ -650,19 +816,18 @@ function renderDay(){
           ${restoreBtn}
           ${adhBtns}
         </div>
+        ${swapNote}
         <div class="recipe">
-          <table>
-            <tr><th>Ingrediente</th><th class="v">Valentina</th><th class="c">Constantino</th></tr>
-            ${rows}
-          </table>
+          <table>${tableHead}${rows}</table>
           <div class="prep">👨‍🍳 ${m.prep}</div>
         </div>
       </div>`);
   });
 
-  document.getElementById('planHint').innerHTML = currentUser==='consti'
-    ? '💊 Creatina: 3–5 g hoy (todos los días, con agua). Meta de proteína: ~140–160 g. Las kcal ya contemplan tu día de gym/descanso.'
+  const hint = pset==='consti'
+    ? '💊 Si tomás creatina: 3–5 g todos los días, con agua. Proteína alta en cada comida. Las kcal contemplan tu día de gym/descanso.'
     : '💧 2 L de agua · comé despacio · las kcal son estimaciones de referencia, la consistencia importa más que la precisión.';
+  document.getElementById('planHint').innerHTML=hint;
 }
 
 function toggleRecipe(btn){
@@ -673,21 +838,141 @@ function toggleRecipe(btn){
 }
 
 async function restoreMeal(day,slot){
-  delete STATE.overrides[day+'-'+slot];
+  delete ovMap(currentUser)[day+'-'+slot];
   await store.set(STATE);
   toast('Comida restaurada al plan original');
   renderDay();
 }
 
-async function setAdh(idx,val){
-  const dateISO=dateForDay(selectedDay);
+let swapCtx=null;
+function openSwap(idx){
+  swapCtx={day:selectedDay, slot:idx, dateISO:dateForDay(selectedDay)};
+  const m=mealAt(selectedDay,idx,currentUser);
+  document.getElementById('swapMeal').textContent=`${SLOT_LABELS[idx]}: ${m.n}`;
+  const cur=((STATE.adherence[currentUser]||{})[swapCtx.dateISO]||{})[idx];
+  document.getElementById('swapText').value = cur&&cur.swap ? cur.swap : '';
+  document.getElementById('swapDlg').showModal();
+  setTimeout(()=>document.getElementById('swapText').focus(),50);
+}
+
+async function saveSwap(){
+  const txt=document.getElementById('swapText').value.trim();
+  if(!txt){ toast('Escribí qué comiste'); return; }
+  const {dateISO,slot}=swapCtx;
   if(!STATE.adherence[currentUser]) STATE.adherence[currentUser]={};
   const day=STATE.adherence[currentUser][dateISO]||{};
-  if(day[idx]===val) delete day[idx]; else day[idx]=val;
+  day[slot]={swap:txt};
+  STATE.adherence[currentUser][dateISO]=day;
+  await store.set(STATE);
+  document.getElementById('swapDlg').close();
+  renderDay();
+  toast('Registrado — sin culpa 💪');
+}
+
+async function clearSwap(idx){
+  const dateISO=dateForDay(selectedDay);
+  const day=(STATE.adherence[currentUser]||{})[dateISO]||{};
+  delete day[idx];
   STATE.adherence[currentUser][dateISO]=day;
   await store.set(STATE);
   renderDay();
-  toast(val==='ok' && day[idx] ? 'Comida cumplida ✓' : day[idx]==='skip' ? 'Registrado — mañana se retoma 💪' : 'Marca borrada');
+  toast('Marca borrada');
+}
+
+
+/* =================== COMPRAS =================== */
+/* Lista curada por categoría. base = para 1 persona/semana con este plan.
+   Para la pareja se muestran cantidades combinadas; para invitados, 1 persona. */
+function shoppingData(){
+  const couple=isCouple(currentUser);
+  const mult = couple?1:0.55; // invitado ~ media casa
+  const scale=(a,b)=> couple? a : b;
+  return [
+   {cat:'Huevos y lácteos', items:[
+     ['Huevos', scale('3 maples (90 u)','1 maple + ½ (45 u)')],
+     ['Yogur natural o proteico', scale('12 potes / 2 kg','7 potes / 1 kg')],
+     ['Ricota', scale('500 g','250 g')],
+     ['Queso port salut', scale('300 g','200 g')],
+     ['Leche', scale('1 L','1 L')],
+   ]},
+   {cat:'Proteínas', items:[
+     ['Pechuga de pollo', scale('1.2 kg','700 g')],
+     ['Carne magra (nalga/cuadril/lomo)', scale('900 g','500 g')],
+     ['Carne picada especial', scale('300 g','200 g')],
+     ['Merluza (filet congelado)', scale('600 g','350 g')],
+     ['Atún al natural (lata)', scale('6 latas','3 latas')],
+   ]},
+   {cat:'Verduras (estación invierno)', items:[
+     ['Verduras para asar (zapallo, morrón, cebolla, zanahoria)', scale('2.5 kg','1.5 kg')],
+     ['Hojas verdes / ensalada', scale('2 paquetes','1 paquete')],
+     ['Espinaca o acelga', scale('2 atados','1 atado')],
+     ['Brócoli', scale('2 u','1 u')],
+     ['Calabaza', scale('1 grande','1 chica')],
+     ['Tomate', scale('1 kg','500 g')],
+     ['Cebolla', scale('1 kg','500 g')],
+     ['Papa y batata', scale('1.5 kg','800 g')],
+     ['Palta', scale('4 u','2 u')],
+   ]},
+   {cat:'Frutas', items:[
+     ['Banana', scale('12 u','7 u')],
+     ['Fruta de estación (manzana, pera, cítricos, kiwi)', scale('14 u','8 u')],
+   ]},
+   {cat:'Almacén', items:[
+     ['Avena arrollada', scale('500 g','300 g')],
+     ['Pan integral', scale('2 paquetes','1 paquete')],
+     ['Arroz integral', scale('1 kg','500 g')],
+     ['Fideos integrales o de legumbres', scale('500 g','500 g')],
+     ['Lentejas', scale('500 g','300 g')],
+     ['Garbanzos (para hummus)', scale('400 g','400 g')],
+     ['Galletas de arroz', scale('2 paquetes','1 paquete')],
+     ['Salsa de tomate / tomate triturado', scale('4 u','2 u')],
+     ['Aceite de oliva', scale('500 ml','500 ml')],
+     ['Semillas de chía', scale('250 g','250 g')],
+     ['Maní / mantequilla de maní sin azúcar', scale('1 frasco','1 frasco')],
+     ['Frutos secos (almendras, nueces)', scale('300 g','200 g')],
+   ]},
+   {cat:'Solo Constantino', hideForValen:true, items:[
+     ['Whey protein', '1 pote (según stock)'],
+     ['Creatina monohidrato', '1 pote (según stock)'],
+   ]},
+  ];
+}
+
+function renderShopping(){
+  const wrap=document.getElementById('shopList');
+  const checked=(STATE.shopping&&STATE.shopping[currentUser])||{};
+  const data=shoppingData();
+  const single=!isCouple(currentUser);
+  const singlePset=portionOf(currentUser);
+  wrap.innerHTML=data.map((c,ci)=>{
+    if(c.hideForValen && single && singlePset!=='consti') return '';
+    const rows=c.items.map((it,ii)=>{
+      const key=ci+'-'+ii;
+      const done=checked[key]?'done':'';
+      return `<div class="shopItem ${done}" onclick="toggleShop('${key}')">
+        <div class="box">${checked[key]?'✓':''}</div>
+        <span class="name">${it[0]}</span><span class="qty">${it[1]}</span></div>`;
+    }).join('');
+    const total=c.items.length;
+    const doneCount=c.items.filter((_,ii)=>checked[ci+'-'+ii]).length;
+    return `<div class="shopCat"><h4>${c.cat}<span>${doneCount}/${total}</span></h4>${rows}</div>`;
+  }).join('');
+}
+
+async function toggleShop(key){
+  if(!STATE.shopping) STATE.shopping={};
+  if(!STATE.shopping[currentUser]) STATE.shopping[currentUser]={};
+  const c=STATE.shopping[currentUser];
+  if(c[key]) delete c[key]; else c[key]=1;
+  await store.set(STATE);
+  renderShopping();
+}
+
+async function resetShopping(){
+  if(STATE.shopping) STATE.shopping[currentUser]={};
+  await store.set(STATE);
+  renderShopping();
+  toast('Lista reiniciada');
 }
 
 /* =================== CHEF (agente IA) =================== */
@@ -697,7 +982,7 @@ function planSnapshot(){
   const days=PLAN.map((d,di)=>({
     dia:DAY_NAMES[di],
     comidas:d.slots.map((_,si)=>{
-      const m=mealAt(di,si);
+      const m=mealAt(di,si,currentUser);
       return {slot:si, nombre:m.n, kcalV:m.kv, kcalC:m.kc};
     })
   }));
@@ -705,11 +990,17 @@ function planSnapshot(){
 }
 
 function chefSystem(){
-  const who=PROFILES_META[currentUser].name;
-  return `Sos el chef-nutricionista de NutriPlan, la app de plan alimentario de una pareja de Buenos Aires:
+  const meta=getMeta(currentUser), prof=profOf(currentUser), pset=portionOf(currentUser);
+  let ctx;
+  if(isCouple(currentUser)){
+    ctx=`la app de plan alimentario de una pareja de Buenos Aires:
 - Valentina: 1.61 m, objetivo bajar a ~52 kg con déficit moderado (~1500 kcal/día, proteína ~100-115 g/día).
 - Constantino: 1.88 m, recomposición corporal (bajar grasa, mantener músculo), gym 3x/semana, toma creatina (~2100-2300 kcal/día, proteína ~140-160 g/día). Días de gym: carbohidratos completos; descanso: mitad.
-Usuario que te escribe ahora: ${who}.
+Usuario que te escribe ahora: ${meta.name}. Tus cambios se aplican al menú compartido de la pareja.`;
+  } else {
+    ctx=`una app de plan alimentario. Usuario: ${meta.name}, ${meta.height} m${prof.target?`, objetivo ${prof.target} kg`:''}. Sigue el plan base con porciones tipo ${pset==='valen'?'déficit (~1500 kcal/día, proteína ~100-115 g)':'recomposición (~2100-2300 kcal/día, proteína alta, carbos completos días de gym y mitad los de descanso)'}. Tus cambios solo afectan SU menú personal.`;
+  }
+  return `Sos el chef-nutricionista de NutriPlan, ${ctx}
 Principios del plan: proteína en cada comida, mitad del plato verduras, comida real accesible en supermercados/verdulerías de Buenos Aires, ultraprocesados al mínimo, pescado 2-3x/semana, desayuno fijo (huevos revueltos con tostadas). Los slots son: 0=Desayuno, 1=Media mañana, 2=Almuerzo, 3=Merienda, 4=Cena. Los días: 0=Lunes ... 6=Domingo.
 Plan actual: ${planSnapshot()}
 
@@ -729,7 +1020,7 @@ function toggleChef(){
   p.style.display = open ? 'block' : 'none';
   document.getElementById('chefToggle').textContent = open ? '🧑‍🍳 Ocultar chef' : '🧑‍🍳 Sugerir cambios al chef';
   if(open && !document.getElementById('chatMsgs').children.length){
-    pushBubble('bot',`Hola ${PROFILES_META[currentUser].name.split(' ')[0]} 👋 Soy el chef del plan. Contame qué querés cambiar del menú — puedo proponerte reemplazos con receta y calorías equivalentes, y aplicarlos directo.`);
+    pushBubble('bot',`Hola ${getMeta(currentUser).name} 👋 Soy el chef del plan. Contame qué querés cambiar del menú — puedo proponerte reemplazos con receta y calorías equivalentes, y aplicarlos directo.`);
   }
   if(open) p.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -802,7 +1093,7 @@ function renderProposal(ch){
     <div class="pIng">${ing}</div>
     <button class="btn">Aplicar al menú</button>`;
   el.querySelector('button').onclick=async ()=>{
-    STATE.overrides[ch.day+'-'+ch.slot]={...ch.meal, by:currentUser, date:new Date().toISOString().slice(0,10)};
+    ovMap(currentUser)[ch.day+'-'+ch.slot]={...ch.meal, by:currentUser, date:new Date().toISOString().slice(0,10)};
     await store.set(STATE);
     el.classList.add('applied');
     el.querySelector('button').textContent='✓ Aplicado — se ve en el Plan';
@@ -878,26 +1169,28 @@ function adherenceStat(u){
   const adh=STATE.adherence[u]||{};
   const cutoff=new Date(); cutoff.setDate(cutoff.getDate()-14);
   const ciso=cutoff.toISOString().slice(0,10);
-  let ok=0, skip=0;
+  let misses=0, days=new Set();
   for(const [d,meals] of Object.entries(adh)){
     if(d<ciso) continue;
-    for(const v of Object.values(meals)){ if(v==='ok') ok++; else if(v==='skip') skip++; }
+    for(const v of Object.values(meals)){ if(v&&v.swap){ misses++; days.add(d); } }
   }
-  const total=ok+skip;
-  if(!total) return `<div class="stat" style="grid-column:1/-1"><div class="k">Adherencia (14 días)</div><div class="v">—</div><div class="s">Marcá ✓/✗ en cada comida del plan para medirla</div></div>`;
-  const pct=Math.round(ok/total*100);
-  const msg = pct>=85 ? 'excelente — este ritmo da resultados' : pct>=70 ? 'buena — margen para ajustar' : 'floja — revisá qué comidas fallan y simplificalas';
-  return `<div class="stat" style="grid-column:1/-1"><div class="k">Adherencia (14 días)</div><div class="v num">${pct}%</div><div class="s">${ok} cumplidas · ${skip} no cumplidas · ${msg}</div></div>`;
+  if(!misses) return `<div class="stat" style="grid-column:1/-1"><div class="k">Adherencia (14 días)</div><div class="v num">✓</div><div class="s">Sin desvíos registrados. Marcá "No cumplí" cuando comas algo distinto para llevar el registro.</div></div>`;
+  const msg = misses<=3 ? 'muy buena — desvíos puntuales, no afectan el resultado' : misses<=7 ? 'buena — mirá si hay un patrón (¿qué comida o día falla?)' : 'con margen — quizás algunas comidas no encajan; probá cambiarlas con el chef';
+  return `<div class="stat" style="grid-column:1/-1"><div class="k">Adherencia (14 días)</div><div class="v num">${misses} desvío${misses>1?'s':''}</div><div class="s">en ${days.size} día${days.size>1?'s':''} · ${msg}</div></div>`;
 }
 
-function setStatsUser(u){ statsUser=u; renderStats(); }
+function setStatsUser(u){ if(!isCouple(currentUser)) return; statsUser=u; renderStats(); }
 
 function renderStats(){
   if(!currentUser) return;
-  if(!statsUser) statsUser=currentUser;
+  const couple=isCouple(currentUser);
+  if(!couple || !statsUser || (!couple && statsUser!==currentUser)) statsUser=couple?(statsUser||currentUser):currentUser;
+  if(!couple) statsUser=currentUser;
+  const tg=document.querySelector('.whoToggle'); if(tg) tg.style.display=couple?'flex':'none';
+  const lg=document.querySelector('.legendRow'); if(lg) lg.style.display=couple?'flex':'none';
   document.querySelectorAll('.whoBtn').forEach(b=>b.classList.toggle('on', b.dataset.u===statsUser));
-  const meta=PROFILES_META[statsUser];
-  const prof=STATE.profiles[statsUser];
+  const meta=getMeta(statsUser);
+  const prof=profOf(statsUser);
   const arr=STATE.weights[statsUser];
   const grid=document.getElementById('statGrid');
 
@@ -934,22 +1227,21 @@ function renderChart(){
   const ctx=document.getElementById('chart');
   if(chartRef) chartRef.destroy();
   const ds=[];
-  const mk=(u)=>{
-    const meta=PROFILES_META[u];
-    const arr=STATE.weights[u];
-    if(!arr.length) return null;
-    return {
+  const users = isCouple(currentUser) ? ['valen','consti'] : [currentUser];
+  users.forEach(u=>{
+    const meta=getMeta(u);
+    const arr=STATE.weights[u]||[];
+    if(!arr.length) return;
+    const line={
       label:meta.name,
       data:arr.map(e=>({x:e.d,y:e.w})),
       borderColor:meta.color, backgroundColor:meta.color,
       tension:.3, pointRadius:4, pointHoverRadius:6, borderWidth:2.5
     };
-  };
-  const dv=mk('valen'), dc=mk('consti');
-  if(dv) ds.push(dv); if(dc) ds.push(dc);
-  const tgtV=STATE.profiles.valen.target, tgtC=STATE.profiles.consti.target;
-  if(tgtV && dv) ds.push({label:'Objetivo V',data:dv.data.map(p=>({x:p.x,y:tgtV})),borderColor:'#B04A6E55',borderDash:[6,6],pointRadius:0,borderWidth:1.5});
-  if(tgtC && dc) ds.push({label:'Objetivo C',data:dc.data.map(p=>({x:p.x,y:tgtC})),borderColor:'#2E6E6A55',borderDash:[6,6],pointRadius:0,borderWidth:1.5});
+    ds.push(line);
+    const tgt=(profOf(u)||{}).target;
+    if(tgt) ds.push({label:'Objetivo '+meta.letter,data:line.data.map(p=>({x:p.x,y:tgt})),borderColor:meta.color+'55',borderDash:[6,6],pointRadius:0,borderWidth:1.5});
+  });
 
   chartRef=new Chart(ctx,{
     type:'line',
@@ -969,19 +1261,20 @@ function renderChart(){
   });
 }
 function mergedDates(){
-  const s=new Set([...STATE.weights.valen.map(e=>e.d),...STATE.weights.consti.map(e=>e.d)]);
+  const users = isCouple(currentUser) ? ['valen','consti'] : [currentUser];
+  const s=new Set(users.flatMap(u=>(STATE.weights[u]||[]).map(e=>e.d)));
   return [...s].sort();
 }
 
 /* =================== SETTINGS =================== */
 function openSettings(){
   const dlg=document.getElementById('settingsDlg');
-  const prof=STATE.profiles[currentUser];
-  document.getElementById('setName').textContent=PROFILES_META[currentUser].name;
+  const prof=profOf(currentUser);
+  document.getElementById('setName').textContent=getMeta(currentUser).name;
   document.getElementById('setTarget').value=prof.target??'';
   document.getElementById('setPin').value='';
   const gymBlock=document.getElementById('gymBlock');
-  if(currentUser==='consti'){
+  if(portionOf(currentUser)==='consti'){
     gymBlock.style.display='block';
     const row=document.getElementById('gymDaysRow'); row.innerHTML='';
     DAY_SHORT.forEach((d,i)=>{
@@ -997,12 +1290,12 @@ function openSettings(){
 }
 
 async function saveSettings(){
-  const prof=STATE.profiles[currentUser];
+  const prof=profOf(currentUser);
   const t=parseFloat(document.getElementById('setTarget').value);
   prof.target = isNaN(t)?null:t;
   const pin=document.getElementById('setPin').value.trim();
   if(pin){ if(!/^\d{4}$/.test(pin)){ toast('El PIN debe tener 4 dígitos'); return; } prof.pin=pin; }
-  if(currentUser==='consti'){
+  if(portionOf(currentUser)==='consti'){
     prof.gymDays=[...document.querySelectorAll('#gymDaysRow .gymDay')].map((b,i)=>b.classList.contains('on')?i:-1).filter(i=>i>=0);
   }
   await store.set(STATE);
