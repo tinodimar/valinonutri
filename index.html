@@ -555,7 +555,7 @@ const store={
       try{
         const ctrl=new AbortController();
         const t=setTimeout(()=>ctrl.abort(),8000);
-        const r=await fetch('/api/state',{signal:ctrl.signal});
+        const r=await fetch('/api/state?t='+Date.now(),{signal:ctrl.signal,cache:'no-store'});
         clearTimeout(t);
         const data=await r.json();
         if(data && data._noBackend){ SYNC_STATUS='backend NO configurado (falta KV en Vercel)'; }
@@ -587,7 +587,7 @@ const store={
   async pull(){
     if(!USE_BACKEND) return false;
     try{
-      const r=await fetch('/api/state');
+      const r=await fetch('/api/state?t='+Date.now(),{cache:'no-store'});
       const data=await r.json();
       if(data && !data._noBackend && Object.keys(data).length){
         STATE=data;
@@ -757,7 +757,9 @@ function enter(u){
   document.getElementById('wDate').value=new Date().toISOString().slice(0,10);
   renderAll();
   let lastTab='plan';
-  try{ lastTab=localStorage.getItem('nutritino:lastTab')||'plan'; }catch(e){}
+  // preferir el tab guardado en STATE (sincroniza vía backend); fallback a localStorage
+  if(STATE.lastTab) lastTab=STATE.lastTab;
+  else { try{ lastTab=localStorage.getItem('nutritino:lastTab')||'plan'; }catch(e){} }
   if(!['plan','compras','peso','stats'].includes(lastTab)) lastTab='plan';
   switchView(lastTab);
 }
@@ -781,6 +783,8 @@ function switchView(v){
   if(v==='peso') renderEntries();
   if(v==='stats') renderStats();
   try{ localStorage.setItem('nutritino:lastTab', v); }catch(e){}
+  // persistir también en STATE (se sincroniza aunque Safari bloquee localStorage)
+  if(STATE && STATE.lastTab!==v){ STATE.lastTab=v; if(currentUser) store.set(STATE); }
 }
 
 /* =================== PLAN =================== */
@@ -1125,7 +1129,7 @@ async function pullShopping(){
   if(!USE_BACKEND) return;
   const scope=shopScope();
   try{
-    const r=await fetch('/api/shopping');
+    const r=await fetch('/api/shopping?t='+Date.now(),{cache:'no-store'});
     const all=await r.json();
     if(all && !all._noBackend){
       if(!STATE.shopping) STATE.shopping={};
