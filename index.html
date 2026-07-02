@@ -252,14 +252,24 @@
   .shopCat{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);margin-bottom:12px;overflow:hidden}
   .shopCat h4{font-family:'Fraunces',serif;font-size:1.02rem;padding:12px 16px;background:var(--sage-soft);color:var(--sage);display:flex;justify-content:space-between;align-items:center}
   .shopCat h4 span{font-size:.72rem;font-weight:700;color:var(--muted);font-family:'Karla'}
-  .shopItem{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px dashed var(--line);cursor:pointer;font-size:.92rem}
+  .shopItem{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px dashed var(--line);font-size:.92rem}
   .shopItem:last-child{border-bottom:none}
-  .shopItem .box{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#fff}
-  .shopItem.done{color:var(--muted)}
-  .shopItem.done .name{text-decoration:line-through}
+  .shopItem .box{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#fff;cursor:pointer}
+  .shopItem .name{cursor:pointer}
+  .shopItem.done .name{color:var(--muted)}
   .shopItem.done .box{background:var(--sage);border-color:var(--sage)}
-  .shopItem .qty{margin-left:auto;font-weight:700;color:var(--muted);font-size:.82rem}
-  .shopItem.done .qty{text-decoration:line-through}
+  .shopItem .qty{margin-left:auto;margin-right:8px;font-weight:700;color:var(--muted);font-size:.82rem}
+  .buyBtn{border:1.5px solid var(--gold);background:transparent;color:#8a6d12;border-radius:8px;padding:5px 9px;font-family:'Karla';font-weight:700;font-size:.72rem;cursor:pointer;flex-shrink:0;white-space:nowrap}
+  .buyBtn.active{background:var(--gold);color:#3a2f08}
+  .shopItem.onbuy{background:#FBF6E6}
+  .buyCat h4{background:#F3E9C8;color:#8a6d12}
+  .shopItem.buy{cursor:pointer}
+  .shopItem.buy .buybox{background:transparent;border:none;font-size:1rem;width:auto}
+  .customTag{font-size:.62rem;font-weight:700;background:var(--sage-soft);color:var(--sage);padding:1px 6px;border-radius:999px;margin-left:6px}
+  .addProdRow{display:flex;gap:8px;margin:0 2px 6px}
+  .addProdRow input{flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);font-family:'Karla';font-size:.92rem}
+  .addProdRow input:focus{outline:2px solid var(--sage)}
+  .addProdRow .btn{flex-shrink:0}
   .weekNav{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 4px}
   .weekArrow{border:1.5px solid var(--line);background:var(--card);border-radius:10px;width:40px;height:40px;font-size:1rem;cursor:pointer;color:var(--ink);flex-shrink:0}
   .weekArrow:hover{border-color:var(--sage);color:var(--sage)}
@@ -365,11 +375,16 @@
 
     <!-- COMPRAS -->
     <section id="view-compras" style="display:none">
-      <h2 class="sectionTitle">Lista de compras semanal</h2>
-      <p class="hint" style="margin:0 2px 12px">🗓️ Hacela los domingos para toda la semana. Generada desde el menú actual (incluye tus cambios del chef). Tocá cada ítem para tacharlo.</p>
+      <h2 class="sectionTitle">Lista de compras</h2>
+      <p class="hint" style="margin:0 2px 10px">✓ = <b>hay stock en casa</b>. Tocá <b>+ súper</b> para sumar algo a la lista de compras (aparece arriba en 🛒 Para comprar).</p>
+      <div class="addProdRow">
+        <input id="newProdInput" placeholder="Agregar producto… (ej: 2 paquetes de arroz)" onkeydown="if(event.key==='Enter')addProduct()">
+        <button class="btn" id="addProdBtn" onclick="addProduct()">Agregar</button>
+      </div>
+      <p class="hint" style="margin:0 2px 12px;font-size:.75rem">El producto se categoriza solo y se agrega directo a tu lista de súper.</p>
       <p class="hint" id="syncStatus" style="margin:0 2px 12px;font-size:.72rem;opacity:.7"></p>
       <div id="shopList"></div>
-      <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetShopping()">↺ Destildar todo</button>
+      <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetShopping()">🛒 Vaciar lista de súper</button>
     </section>
 
     <!-- PESO -->
@@ -1148,7 +1163,6 @@ async function clearSwap(idx){
    Para la pareja se muestran cantidades combinadas; para invitados, 1 persona. */
 function shoppingData(){
   const couple=isCouple(currentUser);
-  const mult = couple?1:0.55; // invitado ~ media casa
   const scale=(a,b)=> couple? a : b;
   return [
    {cat:'Huevos y lácteos', items:[
@@ -1201,45 +1215,129 @@ function shoppingData(){
   ];
 }
 
+const SHOP_CATS=['Huevos y lácteos','Proteínas','Verduras (estación invierno)','Frutas','Almacén','Solo Constantino','Otros'];
+
 function shopScope(){ return isCouple(currentUser) ? 'shared' : currentUser; }
+
+// Estado por scope: { items:{ key:{stock,buy} }, custom:[ {name,qty,cat,stock,buy} ] }
+function shopState(){
+  const scope=shopScope();
+  if(!STATE.shopping) STATE.shopping={};
+  let s=STATE.shopping[scope];
+  // migración del formato viejo ({key:1}) al nuevo
+  if(!s || typeof s!=='object'){ s={items:{},custom:[]}; }
+  else if(!s.items && !s.custom){
+    const items={};
+    for(const k of Object.keys(s)){ if(s[k]) items[k]={stock:true,buy:false}; }
+    s={items, custom:[]};
+  }
+  if(!s.items) s.items={};
+  if(!s.custom) s.custom=[];
+  STATE.shopping[scope]=s;
+  return s;
+}
 
 function renderShopping(){
   const wrap=document.getElementById('shopList');
-  const checked=(STATE.shopping&&STATE.shopping[shopScope()])||{};
+  const s=shopState();
   const data=shoppingData();
   const single=!isCouple(currentUser);
   const singlePset=portionOf(currentUser);
-  wrap.innerHTML=data.map((c,ci)=>{
-    if(c.hideForValen && single && singlePset!=='consti') return '';
-    const rows=c.items.map((it,ii)=>{
-      const key=ci+'-'+ii;
-      const done=checked[key]?'done':'';
-      return `<div class="shopItem ${done}" onclick="toggleShop('${key}')">
-        <div class="box">${checked[key]?'✓':''}</div>
-        <span class="name">${it[0]}</span><span class="qty">${it[1]}</span></div>`;
+
+  // 1) Sección "Para comprar" (todo lo marcado buy=true)
+  const buyList=[];
+  data.forEach((c,ci)=>{
+    if(c.hideForValen && single && singlePset!=='consti') return;
+    c.items.forEach((it,ii)=>{ const st=s.items[ci+'-'+ii]; if(st&&st.buy) buyList.push({name:it[0],qty:it[1],key:ci+'-'+ii,custom:false}); });
+  });
+  s.custom.forEach((ci,i)=>{ if(ci.buy) buyList.push({name:ci.name,qty:ci.qty||'',key:'c'+i,custom:true}); });
+
+  let html='';
+  if(buyList.length){
+    const rows=buyList.map(b=>`<div class="shopItem buy" onclick="toggleBuy('${b.key}')">
+      <div class="box buybox">🛒</div>
+      <span class="name">${b.name}</span><span class="qty">${b.qty}</span></div>`).join('');
+    html+=`<div class="shopCat buyCat"><h4>🛒 Para comprar<span>${buyList.length}</span></h4>${rows}</div>`;
+  }
+
+  // 2) Categorías con estado stock + botón comprar
+  const cats={};
+  SHOP_CATS.forEach(c=>cats[c]=[]);
+  data.forEach((c,ci)=>{
+    if(c.hideForValen && single && singlePset!=='consti') return;
+    c.items.forEach((it,ii)=>{
+      const key=ci+'-'+ii; const st=s.items[key]||{};
+      cats[c.cat]=cats[c.cat]||[];
+      cats[c.cat].push({name:it[0],qty:it[1],key,stock:!!st.stock,buy:!!st.buy,custom:false});
+    });
+  });
+  s.custom.forEach((ci,i)=>{
+    const cat=SHOP_CATS.includes(ci.cat)?ci.cat:'Otros';
+    cats[cat]=cats[cat]||[];
+    cats[cat].push({name:ci.name,qty:ci.qty||'',key:'c'+i,stock:!!ci.stock,buy:!!ci.buy,custom:true});
+  });
+
+  SHOP_CATS.forEach(catName=>{
+    const list=cats[catName]; if(!list||!list.length) return;
+    const rows=list.map(o=>{
+      const stockCls=o.stock?'done':'';
+      const buyCls=o.buy?'onbuy':'';
+      const tag=o.custom?' <span class="customTag">agregado</span>':'';
+      const delBtn=o.custom?`<button class="buyBtn" style="border-color:var(--line);color:var(--muted)" onclick="delCustom('${o.key}')" title="Quitar">✕</button>`:'';
+      return `<div class="shopItem ${stockCls} ${buyCls}">
+        <div class="box" onclick="toggleStock('${o.key}')" title="Marcar si hay stock en casa">${o.stock?'✓':''}</div>
+        <span class="name" onclick="toggleStock('${o.key}')">${o.name}${tag}</span>
+        <span class="qty">${o.qty}</span>
+        <button class="buyBtn ${o.buy?'active':''}" onclick="toggleBuy('${o.key}')" title="Agregar a lista de súper">${o.buy?'✓ En lista':'+ súper'}</button>
+        ${delBtn}
+      </div>`;
     }).join('');
-    const total=c.items.length;
-    const doneCount=c.items.filter((_,ii)=>checked[ci+'-'+ii]).length;
-    return `<div class="shopCat"><h4>${c.cat}<span>${doneCount}/${total}</span></h4>${rows}</div>`;
-  }).join('');
+    const stockCount=list.filter(o=>o.stock).length;
+    html+=`<div class="shopCat"><h4>${catName}<span>${stockCount}/${list.length} en casa</span></h4>${rows}</div>`;
+  });
+
+  wrap.innerHTML=html;
   const ss=document.getElementById('syncStatus'); if(ss) ss.textContent='Sincronización: '+SYNC_STATUS;
 }
 
-async function toggleShop(key){
-  const scope=shopScope();
-  if(!STATE.shopping) STATE.shopping={};
-  if(!STATE.shopping[scope]) STATE.shopping[scope]={};
-  if(STATE.shopping[scope][key]) delete STATE.shopping[scope][key]; else STATE.shopping[scope][key]=1;
+function _findItem(key){
+  const s=shopState();
+  if(key[0]==='c'){ const i=parseInt(key.slice(1),10); return {type:'custom', obj:s.custom[i], s}; }
+  if(!s.items[key]) s.items[key]={stock:false,buy:false};
+  return {type:'item', obj:s.items[key], s};
+}
+
+async function delCustom(key){
+  const i=parseInt(key.slice(1),10);
+  const s=shopState();
+  if(!isNaN(i) && s.custom[i]){ s.custom.splice(i,1); await saveShopping(); renderShopping(); toast('Producto quitado'); }
+}
+
+async function toggleStock(key){
+  const {obj}=_findItem(key);
+  obj.stock=!obj.stock;
+  await saveShopping();
   renderShopping();
+}
+
+async function toggleBuy(key){
+  const {obj}=_findItem(key);
+  obj.buy=!obj.buy;
+  await saveShopping();
+  renderShopping();
+}
+
+async function saveShopping(){
+  const scope=shopScope();
   try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
   if(USE_BACKEND) pushShopping(scope);
 }
 
-// Guarda los tildes de este scope en el endpoint DEDICADO (aislado del resto).
+// Guarda el objeto de compras de este scope en el endpoint DEDICADO.
 function pushShopping(scope){
   (async ()=>{
     try{
-      const checks=(STATE.shopping&&STATE.shopping[scope])||{};
+      const checks=(STATE.shopping&&STATE.shopping[scope])||{items:{},custom:[]};
       const r=await fetch('/api/shopping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scope,checks})});
       const j=await r.json().catch(()=>({}));
       if(j&&j._noBackend) SYNC_STATUS='sin backend (falta KV)';
@@ -1249,7 +1347,6 @@ function pushShopping(scope){
   })();
 }
 
-// Trae del endpoint dedicado los tildes del scope actual y los aplica.
 async function pullShopping(){
   if(!USE_BACKEND) return;
   const scope=shopScope();
@@ -1258,7 +1355,7 @@ async function pullShopping(){
     const all=await r.json();
     if(all && !all._noBackend){
       if(!STATE.shopping) STATE.shopping={};
-      STATE.shopping[scope]= all[scope] || {};
+      if(all[scope]) STATE.shopping[scope]= all[scope];
       try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
       renderShopping();
     }
@@ -1267,12 +1364,45 @@ async function pullShopping(){
 
 async function resetShopping(){
   const scope=shopScope();
-  if(!STATE.shopping) STATE.shopping={};
-  STATE.shopping[scope]={};
+  const s=shopState();
+  // limpiar solo lo de "comprar", mantener el stock de casa
+  Object.values(s.items).forEach(o=>{ o.buy=false; });
+  s.custom.forEach(o=>{ o.buy=false; });
+  await saveShopping();
   renderShopping();
-  try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
-  if(USE_BACKEND) pushShopping(scope);
-  toast('Lista reiniciada');
+  toast('Lista de súper vaciada (el stock de casa se mantiene)');
+}
+
+/* ---- Agregar producto nuevo con categorización automática (agente) ---- */
+async function addProduct(){
+  const inp=document.getElementById('newProdInput');
+  const text=(inp.value||'').trim();
+  if(!text){ return; }
+  const btn=document.getElementById('addProdBtn');
+  btn.disabled=true; btn.textContent='…';
+  let cat='Otros', name=text, qty='';
+  try{
+    const onC = /claude\.ai|anthropic\.com|usercontent|claudeusercontent/.test(location.hostname) || location.protocol==='blob:';
+    const sys=`Categorizás un producto de supermercado para una lista de compras. Categorías válidas EXACTAS: ${SHOP_CATS.join(', ')}. Respondé SOLO JSON sin markdown: {"name":"nombre limpio del producto","qty":"cantidad si el texto la menciona, si no vacío","cat":"una de las categorías válidas"}. Ejemplo: entrada "2 paquetes de fideos" -> {"name":"Fideos","qty":"2 paquetes","cat":"Almacén"}.`;
+    const endpoint = onC ? 'https://api.anthropic.com/v1/messages' : '/api/chef';
+    const payload = onC
+      ? { model:'claude-sonnet-4-5', max_tokens:200, system:sys, messages:[{role:'user',content:text}] }
+      : { system:sys, messages:[{role:'user',content:text}] };
+    const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await r.json();
+    const raw=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
+    const p=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if(p.name) name=p.name;
+    if(p.qty) qty=p.qty;
+    if(p.cat && SHOP_CATS.includes(p.cat)) cat=p.cat;
+  }catch(e){ /* si falla el agente, cae en "Otros" con el texto tal cual */ }
+  const s=shopState();
+  s.custom.push({name, qty, cat, stock:false, buy:true}); // por defecto lo pone en la lista de súper
+  await saveShopping();
+  inp.value='';
+  btn.disabled=false; btn.textContent='Agregar';
+  renderShopping();
+  toast(`"${name}" agregado a ${cat}`);
 }
 
 /* =================== CHEF (agente IA) =================== */
