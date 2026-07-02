@@ -1174,39 +1174,52 @@ function shoppingData(){
    ]},
    {cat:'Proteínas', items:[
      ['Pechuga de pollo', scale('1.2 kg','700 g')],
-     ['Carne magra (nalga/cuadril/lomo)', scale('900 g','500 g')],
+     ['Nalga o cuadril', scale('700 g','400 g')],
      ['Carne picada especial', scale('300 g','200 g')],
      ['Merluza (filet congelado)', scale('600 g','350 g')],
      ['Atún al natural (lata)', scale('6 latas','3 latas')],
    ]},
    {cat:'Verduras (estación invierno)', items:[
-     ['Verduras para asar (zapallo, morrón, cebolla, zanahoria)', scale('2.5 kg','1.5 kg')],
-     ['Hojas verdes / ensalada', scale('2 paquetes','1 paquete')],
-     ['Espinaca o acelga', scale('2 atados','1 atado')],
-     ['Brócoli', scale('2 u','1 u')],
-     ['Calabaza', scale('1 grande','1 chica')],
-     ['Tomate', scale('1 kg','500 g')],
+     ['Zapallo / calabaza', scale('1 grande','1 chica')],
+     ['Morrón', scale('4 u','2 u')],
+     ['Zanahoria', scale('1 kg','500 g')],
      ['Cebolla', scale('1 kg','500 g')],
-     ['Papa y batata', scale('1.5 kg','800 g')],
+     ['Lechuga', scale('2 plantas','1 planta')],
+     ['Rúcula', scale('1 atado','1 atado')],
+     ['Espinaca', scale('1 atado','1 atado')],
+     ['Acelga', scale('1 atado','1 atado')],
+     ['Brócoli', scale('2 u','1 u')],
+     ['Tomate', scale('1 kg','500 g')],
+     ['Pepino', scale('3 u','2 u')],
+     ['Papa', scale('1 kg','500 g')],
+     ['Batata', scale('500 g','300 g')],
      ['Palta', scale('4 u','2 u')],
+     ['Choclo', scale('2 u','1 u')],
+     ['Chauchas', scale('300 g','200 g')],
    ]},
    {cat:'Frutas', items:[
      ['Banana', scale('12 u','7 u')],
-     ['Fruta de estación (manzana, pera, cítricos, kiwi)', scale('14 u','8 u')],
+     ['Manzana', scale('6 u','4 u')],
+     ['Pera', scale('4 u','2 u')],
+     ['Naranja', scale('6 u','4 u')],
+     ['Mandarina', scale('6 u','4 u')],
+     ['Kiwi', scale('6 u','4 u')],
+     ['Frutillas', scale('1 caja','1 caja')],
    ]},
    {cat:'Almacén', items:[
      ['Avena arrollada', scale('500 g','300 g')],
      ['Pan integral', scale('2 paquetes','1 paquete')],
      ['Arroz integral', scale('1 kg','500 g')],
-     ['Fideos integrales o de legumbres', scale('500 g','500 g')],
+     ['Fideos integrales', scale('500 g','500 g')],
      ['Lentejas', scale('500 g','300 g')],
-     ['Garbanzos (para hummus)', scale('400 g','400 g')],
+     ['Garbanzos', scale('400 g','400 g')],
      ['Galletas de arroz', scale('2 paquetes','1 paquete')],
-     ['Salsa de tomate / tomate triturado', scale('4 u','2 u')],
+     ['Salsa de tomate / triturado', scale('4 u','2 u')],
      ['Aceite de oliva', scale('500 ml','500 ml')],
      ['Semillas de chía', scale('250 g','250 g')],
-     ['Maní / mantequilla de maní sin azúcar', scale('1 frasco','1 frasco')],
-     ['Frutos secos (almendras, nueces)', scale('300 g','200 g')],
+     ['Mantequilla de maní sin azúcar', scale('1 frasco','1 frasco')],
+     ['Almendras', scale('200 g','150 g')],
+     ['Nueces', scale('200 g','150 g')],
    ]},
    {cat:'Solo Constantino', hideForValen:true, items:[
      ['Whey protein', '1 pote (según stock)'],
@@ -1233,6 +1246,9 @@ function shopState(){
   }
   if(!s.items) s.items={};
   if(!s.custom) s.custom=[];
+  // La lista de productos base cambió de estructura (v2): las claves posicionales viejas
+  // ya no corresponden. Limpiamos una sola vez los flags de ítems base, conservando los custom.
+  if(s._v!==2){ s.items={}; s._v=2; }
   STATE.shopping[scope]=s;
   return s;
 }
