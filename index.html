@@ -542,14 +542,14 @@ const DEFAULT_STATE = {
 const KEY='nutriplan:data';
 // ¿Estamos dentro de Claude o publicados (Vercel)?
 const ON_CLAUDE = /claude\.ai|anthropic\.com|usercontent|claudeusercontent/.test(location.hostname) || location.protocol==='blob:';
-let BACKEND_OK = false; // se determina en el primer fetch a /api/state
+const USE_BACKEND = !ON_CLAUDE && !window.storage; // publicado (no Claude): usar backend siempre
 
 const store={
   async get(){
     // 1) Dentro de Claude: almacenamiento nativo compartido
     if(window.storage){ try{ const r=await window.storage.get(KEY,true); return r?JSON.parse(r.value):null; }catch(e){ return null; } }
     // 2) Publicado: intentar backend compartido (sincroniza entre dispositivos)
-    if(!ON_CLAUDE){
+    if(USE_BACKEND){
       try{
         const ctrl=new AbortController();
         const t=setTimeout(()=>ctrl.abort(),8000);
@@ -557,11 +557,10 @@ const store={
         clearTimeout(t);
         const data=await r.json();
         if(data && !data._noBackend){
-          BACKEND_OK=true;
           try{ localStorage.setItem(KEY,JSON.stringify(data)); }catch(e){}
           return (data && Object.keys(data).length) ? data : null;
         }
-      }catch(e){ /* sin backend o timeout: cae a localStorage */ }
+      }catch(e){ /* timeout o error: cae a localStorage */ }
     }
     // 3) Fallback local
     try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; }
@@ -571,14 +570,14 @@ const store={
     if(window.storage){ try{ await window.storage.set(KEY,s,true); return; }catch(e){} }
     // guardar siempre local (cache/offline)
     try{ localStorage.setItem(KEY,s); }catch(e){}
-    // y empujar al backend si está disponible
-    if(!ON_CLAUDE && BACKEND_OK){
+    // y SIEMPRE empujar al backend cuando estamos publicados
+    if(USE_BACKEND){
       try{ await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})}); }catch(e){}
     }
   },
   // Refresca desde el backend y aplica si cambió (para sincronizar compras entre dispositivos)
   async pull(){
-    if(ON_CLAUDE || !BACKEND_OK) return false;
+    if(!USE_BACKEND) return false;
     try{
       const r=await fetch('/api/state');
       const data=await r.json();
@@ -1090,10 +1089,28 @@ function renderShopping(){
 
 async function toggleShop(key){
   const scope=shopScope();
+  // Optimista: aplicar y redibujar ya
   if(!STATE.shopping) STATE.shopping={};
   if(!STATE.shopping[scope]) STATE.shopping[scope]={};
-  const c=STATE.shopping[scope];
-  if(c[key]) delete c[key]; else c[key]=1;
+  const wasOn = !!STATE.shopping[scope][key];
+  if(wasOn) delete STATE.shopping[scope][key]; else STATE.shopping[scope][key]=1;
+  renderShopping();
+  // Antes de guardar, traer lo último del backend y fusionar los tildes de este grupo
+  if(USE_BACKEND){
+    try{
+      const r=await fetch('/api/state');
+      const remote=await r.json();
+      if(remote && !remote._noBackend && typeof remote==='object'){
+        // fusionar: partir del remoto, pero mantener las OTRAS partes locales
+        remote.shopping = remote.shopping || {};
+        const merged = {...(remote.shopping[scope]||{})};
+        if(wasOn) delete merged[key]; else merged[key]=1;
+        remote.shopping[scope]=merged;
+        // conservar el resto del estado local sobre el remoto (menú, pesos, etc.)
+        STATE = {...remote, ...STATE, shopping:{...remote.shopping, ...STATE.shopping, [scope]:merged}};
+      }
+    }catch(e){}
+  }
   await store.set(STATE);
   renderShopping();
 }
