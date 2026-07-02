@@ -2,8 +2,8 @@
 // Aislado del resto del estado para que ningún otro guardado pueda pisarlos.
 // Guarda un objeto { [scope]: { key: 1, ... } } bajo una única clave KV.
 //
-// GET  /api/shopping            -> { shared:{...}, <userId>:{...} }
-// POST /api/shopping {scope,checks} -> reemplaza los tildes de ese scope
+// GET  /api/shopping                 -> { shared:{...}, <userId>:{...} }
+// POST /api/shopping {scope,checks}  -> reemplaza los tildes de ese scope
 
 const KEY = 'nutritino:shopping';
 
@@ -21,6 +21,22 @@ async function kv(path, method, body) {
   return r.json();
 }
 
+// Parseo robusto: el KV puede devolver el valor como objeto ya parseado
+// o como string JSON (a veces doble-encodeado). Siempre devolvemos un objeto plano.
+function toObject(result) {
+  let v = result;
+  for (let i = 0; i < 3; i++) {
+    if (v == null) return {};
+    if (typeof v === 'object') return v;
+    if (typeof v === 'string') {
+      try { v = JSON.parse(v); } catch (e) { return {}; }
+    } else {
+      return {};
+    }
+  }
+  return typeof v === 'object' && v !== null ? v : {};
+}
+
 export default async function handler(req, res) {
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
     return res.status(200).json({ _noBackend: true });
@@ -29,16 +45,14 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const out = await kv(`get/${KEY}`, 'GET');
-      const val = out && out.result ? JSON.parse(out.result) : {};
-      return res.status(200).json(val);
+      return res.status(200).json(toObject(out && out.result));
     }
     if (req.method === 'POST') {
       const { scope, checks } = req.body || {};
       if (!scope) return res.status(400).json({ error: 'Falta scope' });
-      // leer lo actual, actualizar solo ese scope, guardar
       const out = await kv(`get/${KEY}`, 'GET');
-      const all = out && out.result ? JSON.parse(out.result) : {};
-      all[scope] = checks || {};
+      const all = toObject(out && out.result); // siempre objeto
+      all[scope] = (checks && typeof checks === 'object') ? checks : {};
       await kv(`set/${KEY}`, 'POST', JSON.stringify(all));
       return res.status(200).json({ ok: true, scope });
     }
