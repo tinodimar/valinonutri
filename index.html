@@ -769,7 +769,7 @@ function switchView(v){
     document.getElementById('view-'+x).style.display = x===v?'block':'none';
     document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
   });
-  if(v==='compras'){ store.pull().then(changed=>{ if(changed) renderShopping(); }); renderShopping(); }
+  if(v==='compras'){ renderShopping(); pullShopping(); }
   if(v==='peso') renderEntries();
   if(v==='stats') renderStats();
   try{ localStorage.setItem('nutritino:lastTab', v); }catch(e){}
@@ -1089,36 +1089,62 @@ function renderShopping(){
 
 async function toggleShop(key){
   const scope=shopScope();
-  // Optimista: aplicar y redibujar ya
   if(!STATE.shopping) STATE.shopping={};
   if(!STATE.shopping[scope]) STATE.shopping[scope]={};
-  const wasOn = !!STATE.shopping[scope][key];
-  if(wasOn) delete STATE.shopping[scope][key]; else STATE.shopping[scope][key]=1;
+  // 1) Aplicar de inmediato y redibujar (nunca bloquea el tap)
+  if(STATE.shopping[scope][key]) delete STATE.shopping[scope][key]; else STATE.shopping[scope][key]=1;
   renderShopping();
-  // Antes de guardar, traer lo último del backend y fusionar los tildes de este grupo
-  if(USE_BACKEND){
+  // 2) Guardar local siempre (rápido, sin await de red)
+  try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
+  // 3) Sincronizar en segundo plano, sin bloquear ni re-renderizar
+  if(USE_BACKEND) pushShopping(scope);
+}
+
+// Empuja SOLO los tildes de compras de este grupo al backend, fusionando con lo remoto.
+// Corre en segundo plano; si falla, no afecta la interacción.
+let _pushTimer=null;
+function pushShopping(scope){
+  clearTimeout(_pushTimer);
+  _pushTimer=setTimeout(async ()=>{
     try{
-      const r=await fetch('/api/state');
+      const ctrl=new AbortController();
+      const t=setTimeout(()=>ctrl.abort(),8000);
+      const r=await fetch('/api/state',{signal:ctrl.signal});
+      clearTimeout(t);
       const remote=await r.json();
-      if(remote && !remote._noBackend && typeof remote==='object'){
-        // fusionar: partir del remoto, pero mantener las OTRAS partes locales
-        remote.shopping = remote.shopping || {};
-        const merged = {...(remote.shopping[scope]||{})};
-        if(wasOn) delete merged[key]; else merged[key]=1;
-        remote.shopping[scope]=merged;
-        // conservar el resto del estado local sobre el remoto (menú, pesos, etc.)
-        STATE = {...remote, ...STATE, shopping:{...remote.shopping, ...STATE.shopping, [scope]:merged}};
-      }
-    }catch(e){}
-  }
-  await store.set(STATE);
-  renderShopping();
+      const base=(remote && !remote._noBackend && typeof remote==='object') ? remote : JSON.parse(JSON.stringify(STATE));
+      base.shopping = base.shopping || {};
+      base.shopping[scope] = {...(STATE.shopping[scope]||{})}; // los tildes locales de este grupo mandan
+      await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:base})});
+    }catch(e){ /* silencioso: el tilde local ya quedó guardado */ }
+  },400);
+}
+
+// Trae del backend SOLO los tildes de compras del grupo actual y los aplica.
+async function pullShopping(){
+  if(!USE_BACKEND) return;
+  const scope=shopScope();
+  try{
+    const ctrl=new AbortController();
+    const t=setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch('/api/state',{signal:ctrl.signal});
+    clearTimeout(t);
+    const remote=await r.json();
+    if(remote && !remote._noBackend && remote.shopping && remote.shopping[scope]){
+      if(!STATE.shopping) STATE.shopping={};
+      STATE.shopping[scope]=remote.shopping[scope];
+      try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
+      renderShopping();
+    }
+  }catch(e){ /* silencioso */ }
 }
 
 async function resetShopping(){
-  if(STATE.shopping) STATE.shopping[shopScope()]={};
-  await store.set(STATE);
+  const scope=shopScope();
+  if(STATE.shopping) STATE.shopping[scope]={};
   renderShopping();
+  try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
+  if(USE_BACKEND) pushShopping(scope);
   toast('Lista reiniciada');
 }
 
