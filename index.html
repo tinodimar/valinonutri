@@ -1093,7 +1093,7 @@ function renderShopping(){
     const doneCount=c.items.filter((_,ii)=>checked[ci+'-'+ii]).length;
     return `<div class="shopCat"><h4>${c.cat}<span>${doneCount}/${total}</span></h4>${rows}</div>`;
   }).join('');
-  const ss=document.getElementById('syncStatus'); if(ss) ss.textContent='Sync: '+SYNC_STATUS+' · '+JSON.stringify((STATE.shopping&&STATE.shopping[shopScope()])||{});
+  const ss=document.getElementById('syncStatus'); if(ss) ss.textContent='Sincronización: '+SYNC_STATUS;
 }
 
 async function toggleShop(key){
@@ -1116,7 +1116,7 @@ function pushShopping(scope){
       if(j&&j._noBackend) SYNC_STATUS='sin backend (falta KV)';
       else SYNC_STATUS = r.ok && j.ok ? 'guardado ✓' : ('falló: '+(j.error||('HTTP '+r.status)));
     }catch(e){ SYNC_STATUS='error: '+String(e).slice(0,50); }
-    const el=document.getElementById('syncStatus'); if(el) el.textContent='Sync: '+SYNC_STATUS+' · '+JSON.stringify((STATE.shopping&&STATE.shopping[shopScope()])||{});
+    const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
   })();
 }
 
