@@ -260,6 +260,16 @@
   .shopItem.done .box{background:var(--sage);border-color:var(--sage)}
   .shopItem .qty{margin-left:auto;font-weight:700;color:var(--muted);font-size:.82rem}
   .shopItem.done .qty{text-decoration:line-through}
+  .weekNav{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 4px}
+  .weekArrow{border:1.5px solid var(--line);background:var(--card);border-radius:10px;width:40px;height:40px;font-size:1rem;cursor:pointer;color:var(--ink);flex-shrink:0}
+  .weekArrow:hover{border-color:var(--sage);color:var(--sage)}
+  .weekLabel{text-align:center;flex:1}
+  .weekLabel #weekRange{font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem}
+  .weekLabel #weekTag{font-size:.7rem;font-weight:700;letter-spacing:.04em;margin-top:2px}
+  .weekTag-now{color:var(--sage)} .weekTag-past{color:var(--muted)} .weekTag-future{color:var(--gold)}
+  .readonlyNote{font-size:.78rem;color:var(--muted);background:var(--sage-soft);border-radius:9px;padding:8px 12px;margin:0 2px 12px}
+  .scopeOpt{display:flex;align-items:flex-start;gap:8px;font-size:.85rem;color:var(--ink);margin-top:6px;cursor:pointer;line-height:1.35}
+  .scopeOpt input{margin-top:2px;accent-color:var(--sage);flex-shrink:0}
 </style>
 </head>
 <body>
@@ -318,6 +328,14 @@
   <main>
     <!-- PLAN -->
     <section id="view-plan">
+      <div class="weekNav">
+        <button class="weekArrow" onclick="changeWeek(-1)" aria-label="Semana anterior">◀</button>
+        <div class="weekLabel">
+          <div id="weekRange" class="num">—</div>
+          <div id="weekTag"></div>
+        </div>
+        <button class="weekArrow" onclick="changeWeek(1)" aria-label="Semana siguiente">▶</button>
+      </div>
       <div class="dayPills" id="dayPills"></div>
       <div class="dayHead">
         <h2 id="dayTitle" class="display">Lunes</h2>
@@ -433,8 +451,13 @@
   <div class="field" style="margin-bottom:10px"><label for="edIng">Ingredientes (uno por línea)</label><textarea id="edIng" style="min-height:110px" placeholder="Pechuga de pollo · 150 g&#10;Arroz integral · 100 g&#10;Ensalada (lechuga, tomate) · plato"></textarea></div>
   <p class="hint" style="margin-top:-4px;margin-bottom:10px">Formato: <b>ingrediente · cantidad</b>. Si es ensalada, aclará qué lleva entre paréntesis.</p>
   <div class="field" style="margin-bottom:10px"><label for="edPrep">Preparación</label><textarea id="edPrep" style="min-height:60px" placeholder="Cómo se prepara…"></textarea></div>
-  <div class="formRow" style="margin-bottom:6px">
+  <div class="formRow" style="margin-bottom:10px">
     <div class="field"><label for="edKcal">Calorías aprox. (kcal)</label><input id="edKcal" type="number" min="50" max="2000" placeholder="450"></div>
+  </div>
+  <div class="field" style="margin-bottom:6px">
+    <label>¿A qué se aplica el cambio?</label>
+    <label class="scopeOpt"><input type="radio" name="edScope" value="day" checked> Solo esta comida, este día</label>
+    <label class="scopeOpt"><input type="radio" name="edScope" value="fwd"> Esta comida, este día y todas las semanas siguientes</label>
   </div>
   <div class="err" id="edErr"></div>
   <div class="modalActions">
@@ -536,7 +559,9 @@ const DEFAULT_STATE = {
   },
   weights:{ valen:[], con:[], consti:[] },
   adherence:{ valen:{}, consti:{} },
-  users:{}
+  users:{},
+  overrides:{},
+  weekOverrides:{}
 };
 
 /* =================== STORAGE =================== */
@@ -599,7 +624,26 @@ const store={
   }
 };
 
-let STATE=null, currentUser=null, pendingUser=null, selectedDay=todayIdx(), chartRef=null, statsUser=null;
+let STATE=null, currentUser=null, pendingUser=null, selectedDay=todayIdx(), chartRef=null, statsUser=null, weekOffset=0;
+
+// ---- Fechas por semana calendario (lunes como inicio) ----
+function mondayOf(date){
+  const d=new Date(date); const dow=(d.getDay()+6)%7; // 0=lunes
+  d.setHours(0,0,0,0); d.setDate(d.getDate()-dow); return d;
+}
+function currentMonday(){ return mondayOf(new Date()); }
+function weekStartISO(offset){
+  const m=currentMonday(); m.setDate(m.getDate()+offset*7);
+  return m.toISOString().slice(0,10);
+}
+function weekDates(offset){
+  const start=weekStartISO(offset); const out=[];
+  for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(d.getDate()+i); out.push(d.toISOString().slice(0,10)); }
+  return out;
+}
+function fmtShort(iso){ const [y,m,d]=iso.split('-'); return `${d}/${m}`; }
+function isCurrentWeek(){ return weekOffset===0; }
+function isPastWeek(){ return weekOffset<0; }
 
 function todayIdx(){ return (new Date().getDay()+6)%7; } // Lunes=0
 
@@ -646,9 +690,19 @@ async function init(){
   if(!STATE.users) STATE.users={};
   if(!STATE.shopping) STATE.shopping={};
   if(!STATE.overrides) STATE.overrides={};
+  if(!STATE.weekOverrides) STATE.weekOverrides={};
   try{
-    const flat=Object.keys(STATE.overrides).filter(k=>/^\d-\d$/.test(k));
-    if(flat.length){ const sh=STATE.overrides.shared||{}; flat.forEach(k=>{ sh[k]=STATE.overrides[k]; delete STATE.overrides[k]; }); STATE.overrides.shared=sh; }
+    // migrar formato viejo: overrides.shared['0-0'] = meal  ->  {meal, from: hoy}
+    const today=new Date().toISOString().slice(0,10);
+    for(const sk of Object.keys(STATE.overrides)){
+      const grp=STATE.overrides[sk];
+      if(grp && typeof grp==='object'){
+        for(const key of Object.keys(grp)){
+          const v=grp[key];
+          if(v && v.n && !v.meal){ grp[key]={meal:v, from:today}; } // era una comida directa
+        }
+      }
+    }
   }catch(e){}
   renderLoginGrid();
   // auto-login si hay sesión recordada
@@ -742,7 +796,7 @@ document.getElementById('pinInput').addEventListener('keydown',e=>{ if(e.key==='
 function showErr(msg){ const el=document.getElementById('pinErr'); el.textContent=msg; el.style.display='block'; }
 
 function enter(u){
-  currentUser=u; statsUser=u;
+  currentUser=u; statsUser=u; weekOffset=0; selectedDay=todayIdx();
   if(!STATE.weights[u]) STATE.weights[u]=[];
   if(!STATE.adherence[u]) STATE.adherence[u]={};
   if(!chatHistory[u]) chatHistory[u]=[];
@@ -788,14 +842,34 @@ function switchView(v){
 }
 
 /* =================== PLAN =================== */
-function renderAll(){ renderPills(); renderDay(); renderEntries(); renderStats(); }
+function renderAll(){ renderWeekHeader(); renderPills(); renderDay(); renderEntries(); renderStats(); }
+
+function changeWeek(delta){
+  weekOffset+=delta;
+  if(weekOffset===0) selectedDay=todayIdx();
+  else selectedDay=0;
+  renderWeekHeader(); renderPills(); renderDay();
+}
+
+function renderWeekHeader(){
+  const dates=weekDates(weekOffset);
+  const range=`Semana del ${fmtShort(dates[0])} al ${fmtShort(dates[6])}`;
+  document.getElementById('weekRange').textContent=range;
+  const tag=document.getElementById('weekTag');
+  if(isCurrentWeek()){ tag.textContent='SEMANA ACTUAL'; tag.className='weekTag-now'; }
+  else if(isPastWeek()){ tag.textContent='SEMANA PASADA · solo lectura'; tag.className='weekTag-past'; }
+  else { tag.textContent='SEMANA FUTURA · editable solo por el chef'; tag.className='weekTag-future'; }
+}
 
 function renderPills(){
   const wrap=document.getElementById('dayPills'); wrap.innerHTML='';
+  const dates=weekDates(weekOffset);
+  const todayISO=new Date().toISOString().slice(0,10);
   DAY_SHORT.forEach((d,i)=>{
     const b=document.createElement('button');
-    b.className='dayPill'+(i===selectedDay?' active':'')+(i===todayIdx()?' today':'');
-    b.innerHTML=`${d}<small>${i===todayIdx()?'hoy':'&nbsp;'}</small>`;
+    const isToday=dates[i]===todayISO;
+    b.className='dayPill'+(i===selectedDay?' active':'')+(isToday?' today':'');
+    b.innerHTML=`${d}<small>${isToday?'hoy':fmtShort(dates[i])}</small>`;
     b.onclick=()=>{ selectedDay=i; renderPills(); renderDay(); };
     wrap.appendChild(b);
   });
@@ -807,16 +881,47 @@ function isGymDay(i,u){
   return ((p&&p.gymDays)||[]).includes(i);
 }
 
-function ovMap(u){
+function scopeKey(u){ return isCouple(u)?'shared':u; }
+
+// Overrides "hacia adelante" (permanentes desde una fecha): { slotKey: {meal, from} }
+function fwdMap(u){
   if(!STATE.overrides) STATE.overrides={};
-  const key=isCouple(u)?'shared':u;
-  if(!STATE.overrides[key]) STATE.overrides[key]={};
-  return STATE.overrides[key];
+  const k=scopeKey(u);
+  if(!STATE.overrides[k]) STATE.overrides[k]={};
+  return STATE.overrides[k];
+}
+// Overrides de una semana puntual: { 'weekStart|slotKey': meal }
+function weekMap(u){
+  if(!STATE.weekOverrides) STATE.weekOverrides={};
+  const k=scopeKey(u);
+  if(!STATE.weekOverrides[k]) STATE.weekOverrides[k]={};
+  return STATE.weekOverrides[k];
 }
 
+// Resuelve la comida para un día de semana + slot, según la semana visible (weekOffset) y usuario.
 function mealAt(dayIdx,slotIdx,u){
-  const o=ovMap(u)[dayIdx+'-'+slotIdx];
-  return o || MEALS[PLAN[dayIdx].slots[slotIdx]];
+  const slotKey=dayIdx+'-'+slotIdx;
+  const wStart=weekStartISO(weekOffset);
+  // 1) override puntual de esta semana
+  const wk=weekMap(u)[wStart+'|'+slotKey];
+  if(wk) return wk;
+  // 2) override hacia adelante vigente en esta semana (el más reciente cuyo 'from' <= inicio de esta semana... o de este día)
+  const dayISO=weekDates(weekOffset)[dayIdx];
+  const fwd=fwdMap(u)[slotKey];
+  if(fwd && fwd.from && fwd.from<=dayISO) return fwd.meal;
+  // 3) plan base
+  return MEALS[PLAN[dayIdx].slots[slotIdx]];
+}
+
+// ¿La comida mostrada viene de un override (para mostrar ✎ y ↺)?
+function overrideInfo(dayIdx,slotIdx,u){
+  const slotKey=dayIdx+'-'+slotIdx;
+  const wStart=weekStartISO(weekOffset);
+  if(weekMap(u)[wStart+'|'+slotKey]) return {type:'week'};
+  const dayISO=weekDates(weekOffset)[dayIdx];
+  const fwd=fwdMap(u)[slotKey];
+  if(fwd && fwd.from && fwd.from<=dayISO) return {type:'fwd'};
+  return null;
 }
 
 function kcalOf(meal,user,dayIdx){
@@ -826,9 +931,7 @@ function kcalOf(meal,user,dayIdx){
 }
 
 function dateForDay(i){
-  const t=new Date(); const d=new Date(t);
-  d.setDate(t.getDate()+(i-todayIdx()));
-  return d.toISOString().slice(0,10);
+  return weekDates(weekOffset)[i];
 }
 
 function renderDay(){
@@ -865,9 +968,17 @@ function renderDay(){
   ticket.insertAdjacentHTML('beforeend',
     `<div class="meal" style="background:var(--sage-soft)"><div class="dayKcal">Total del día (${getMeta(currentUser).name}): <b class="num">≈ ${total.toLocaleString('es-AR')} kcal</b> · valores estimados</div></div>`);
 
+  const editable = isCurrentWeek(); // solo la semana actual permite editar y registrar
+  if(!editable){
+    const note = isPastWeek()
+      ? '🔒 Semana pasada — solo lectura. El menú se muestra tal como estaba esa semana.'
+      : '🔒 Semana futura — se muestra el plan vigente. Solo el chef puede modificar semanas futuras.';
+    ticket.insertAdjacentHTML('beforeend', `<div class="readonlyNote">${note}</div>`);
+  }
+
   day.slots.forEach((_,idx)=>{
     const m=mealAt(selectedDay,idx,currentUser);
-    const isOverride=!!ovMap(currentUser)[selectedDay+'-'+idx];
+    const ov=overrideInfo(selectedDay,idx,currentUser);
     const kcal=kcalOf(m,currentUser,selectedDay);
     const time = (idx===2 && day.vianda && couple) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
 
@@ -883,21 +994,22 @@ function renderDay(){
 
     const st=adh[idx];
     const swap = st && st.swap ? st.swap : null;
-    const adhBtns = isFuture ? '' : `
+    const adhBtns = (!editable || isFuture) ? '' : `
       <div class="adhWrap">
         <button class="adhBtn skip ${swap?'on':''}" onclick="openSwap(${idx})">${swap?'✎ Comí otra cosa':'✗ No cumplí'}</button>
       </div>`;
-    const swapNote = swap ? `<div class="swapNote">En lugar de esto comí: <b>${swap}</b> <button class="rBtn" onclick="clearSwap(${idx})">↺ deshacer</button></div>` : '';
-    const byMeta=m.by?getMeta(m.by):null;
-    const modBadge=isOverride?`<span class="modBadge">✎ ${byMeta?byMeta.letter:'✎'}</span>`:'';
-    const restoreBtn=isOverride?`<button class="rBtn" onclick="restoreMeal(${selectedDay},${idx})">↺ Original</button>`:'';
+    const swapNote = swap ? `<div class="swapNote">En lugar de esto comí: <b>${swap}</b> ${editable?`<button class="rBtn" onclick="clearSwap(${idx})">↺ deshacer</button>`:''}</div>` : '';
+    const byMeta=(m.by)?getMeta(m.by):null;
+    const modBadge=ov?`<span class="modBadge">✎ ${byMeta?byMeta.letter:'✎'}</span>`:'';
+    const editBtn = editable ? `<button class="rBtn" onclick="openEdit(${idx})">✎ Editar</button>` : '';
+    const restoreBtn=(ov && editable)?`<button class="rBtn" onclick="restoreMeal(${idx})">↺ Original</button>`:'';
     ticket.insertAdjacentHTML('beforeend',
       `<div class="meal">
         <div class="label"><span>${SLOT_LABELS[idx]}${modBadge}</span><span class="kcal num">~${kcal} kcal</span><span class="time">${time}</span></div>
         <div class="dish">${m.n}</div>
         <div class="mealActions">
           <button class="rBtn" aria-expanded="false" onclick="toggleRecipe(this)">Receta ▾</button>
-          <button class="rBtn" onclick="openEdit(${idx})">✎ Editar</button>
+          ${editBtn}
           ${restoreBtn}
           ${adhBtns}
         </div>
@@ -922,8 +1034,11 @@ function toggleRecipe(btn){
   btn.textContent = open ? 'Receta ▴' : 'Receta ▾';
 }
 
-async function restoreMeal(day,slot){
-  delete ovMap(currentUser)[day+'-'+slot];
+async function restoreMeal(slot){
+  const slotKey=selectedDay+'-'+slot;
+  const wStart=weekStartISO(weekOffset);
+  delete weekMap(currentUser)[wStart+'|'+slotKey];
+  delete fwdMap(currentUser)[slotKey];
   await store.set(STATE);
   toast('Comida restaurada al plan original');
   renderDay();
@@ -945,6 +1060,7 @@ function openEdit(idx){
   document.getElementById('edPrep').value=m.prep||'';
   const kc = couple ? (Array.isArray(m.kc)?m.kc[0]:m.kc) : (portionOf(currentUser)==='valen'? m.kv : (Array.isArray(m.kc)?m.kc[0]:m.kc));
   document.getElementById('edKcal').value=kc;
+  const dayRadio=document.querySelector('input[name="edScope"][value="day"]'); if(dayRadio) dayRadio.checked=true;
   document.getElementById('edErr').style.display='none';
   document.getElementById('editDlg').showModal();
   setTimeout(()=>document.getElementById('edName').focus(),50);
@@ -972,13 +1088,22 @@ async function saveEdit(){
     return [nombre, cant||'—', cant||'—'];
   });
   const meal={ n:name, prep:prep||'—', ing, by:currentUser, date:new Date().toISOString().slice(0,10) };
-  if(couple){ meal.kv=kcal; meal.kc=kcal; }
-  else if(portionOf(currentUser)==='valen'){ meal.kv=kcal; meal.kc=kcal; }
-  else { meal.kv=kcal; meal.kc=kcal; }
-  ovMap(currentUser)[editCtx.day+'-'+editCtx.slot]=meal;
+  meal.kv=kcal; meal.kc=kcal;
+  const scope=(document.querySelector('input[name="edScope"]:checked')||{}).value||'day';
+  const slotKey=editCtx.day+'-'+editCtx.slot;
+  const wStart=weekStartISO(weekOffset);
+  if(scope==='fwd'){
+    // aplica desde este día en adelante (permanente); limpiar cualquier override puntual de esta semana para ese slot
+    fwdMap(currentUser)[slotKey]={ meal, from: dateForDay(editCtx.day) };
+    delete weekMap(currentUser)[wStart+'|'+slotKey];
+    toast('Cambio aplicado desde hoy en adelante ✓');
+  } else {
+    // solo este día de esta semana
+    weekMap(currentUser)[wStart+'|'+slotKey]=meal;
+    toast('Cambio aplicado solo a este día ✓');
+  }
   await store.set(STATE);
   document.getElementById('editDlg').close();
-  toast('Menú actualizado ✓ (guardado en tu perfil)');
   renderDay();
 }
 
@@ -1276,7 +1401,7 @@ function renderProposal(ch){
     <div class="pIng">${ing}</div>
     <button class="btn">Aplicar al menú</button>`;
   el.querySelector('button').onclick=async ()=>{
-    ovMap(currentUser)[ch.day+'-'+ch.slot]={...ch.meal, by:currentUser, date:new Date().toISOString().slice(0,10)};
+    fwdMap(currentUser)[ch.day+'-'+ch.slot]={ meal:{...ch.meal, by:currentUser, date:new Date().toISOString().slice(0,10)}, from:new Date().toISOString().slice(0,10) };
     await store.set(STATE);
     el.classList.add('applied');
     el.querySelector('button').textContent='✓ Aplicado — se ve en el Plan';
