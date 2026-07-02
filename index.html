@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NutriPlan · Valen & Consti</title>
+<title>NutriTino · Valentina & Constantino</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -267,7 +267,7 @@
 <!-- ============ LOGIN ============ -->
 <div id="loginScreen">
   <div class="brand">
-    <h1>Nutri<em>Plan</em></h1>
+    <h1>Nutri<em>Tino</em></h1>
     <p>Su plan de alimentación, a mano y con seguimiento</p>
   </div>
   <div class="profileGrid" id="profileGrid"></div>
@@ -309,7 +309,7 @@
 <!-- ============ APP ============ -->
 <div class="shell" id="appShell" style="display:none">
   <header class="appbar">
-    <div class="logo">Nutri<em>Plan</em></div>
+    <div class="logo">Nutri<em>Tino</em></div>
     <button class="userChip" id="userChip" onclick="logout()" title="Cambiar de usuario">
       <span class="dot" id="chipDot">V</span><span id="chipName">—</span>
     </button>
@@ -425,6 +425,23 @@
   </div>
 </dialog>
 
+<dialog id="editDlg">
+  <h3>Editar comida</h3>
+  <p class="hint" id="editWhen" style="margin-bottom:12px"></p>
+  <div class="field" style="margin-bottom:10px"><label for="edName">Nombre del plato</label><input id="edName" maxlength="80" placeholder="Ej: Pollo al curry con arroz"></div>
+  <div class="field" style="margin-bottom:10px"><label for="edIng">Ingredientes (uno por línea)</label><textarea id="edIng" style="min-height:110px" placeholder="Pechuga de pollo · 150 g&#10;Arroz integral · 100 g&#10;Ensalada (lechuga, tomate) · plato"></textarea></div>
+  <p class="hint" style="margin-top:-4px;margin-bottom:10px">Formato: <b>ingrediente · cantidad</b>. Si es ensalada, aclará qué lleva entre paréntesis.</p>
+  <div class="field" style="margin-bottom:10px"><label for="edPrep">Preparación</label><textarea id="edPrep" style="min-height:60px" placeholder="Cómo se prepara…"></textarea></div>
+  <div class="formRow" style="margin-bottom:6px">
+    <div class="field"><label for="edKcal">Calorías aprox. (kcal)</label><input id="edKcal" type="number" min="50" max="2000" placeholder="450"></div>
+  </div>
+  <div class="err" id="edErr"></div>
+  <div class="modalActions">
+    <button class="btn ghost" onclick="document.getElementById('editDlg').close()">Cancelar</button>
+    <button class="btn" onclick="saveEdit()">Guardar cambio</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -453,13 +470,13 @@ const MEALS={
   ing:[['Pechuga de pollo','130 g','200 g'],['Arroz integral cocido','100 g (½ taza)','200 g gym / 100 g descanso'],['Verduras asadas','200 g','250 g'],['Palta','¼ (30 g)','¼ (30 g)'],['Aceite de oliva','10 g','10 g']]},
  a2:{n:'Ensalada de lentejas con atún y huevo',kv:430,kc:[640,540],
   prep:'Mezclar lentejas cocidas, atún escurrido, huevo duro picado y verduras. Aliñar con oliva y limón. Aguanta perfecto en táper.',
-  ing:[['Lentejas cocidas','100 g','200 g gym / 120 g descanso'],['Atún al natural','1 lata (80 g)','1½ lata (120 g)'],['Huevo duro','1 u','1 u'],['Tomate, cebolla, morrón','150 g','200 g'],['Aceite de oliva','10 g','10 g']]},
+  ing:[['Lentejas cocidas','100 g','200 g gym / 120 g descanso'],['Atún al natural','1 lata (80 g)','1½ lata (120 g)'],['Huevo duro','1 u','1 u'],['Ensalada (tomate, cebolla, morrón)','150 g','200 g'],['Aceite de oliva','10 g','10 g']]},
  a3:{n:'Milanesa al horno con ensalada',kv:460,kc:[720,600],
-  prep:'Milanesa de pollo o nalga AL HORNO (nunca frita). C días de gym: sumar batata asada.',
-  ing:[['Milanesa de pollo o nalga','1 u (150 g)','1½ u (220 g)'],['Ensalada mixta','plato','plato'],['Batata (solo C, día gym)','—','200 g'],['Aceite de oliva','10 g','10 g']]},
+  prep:'Milanesa de pollo o nalga AL HORNO (nunca frita). Ensalada mixta: lechuga, tomate y zanahoria rallada. C días de gym: sumar batata asada.',
+  ing:[['Milanesa de pollo o nalga','1 u (150 g)','1½ u (220 g)'],['Ensalada mixta (lechuga, tomate, zanahoria)','plato','plato'],['Batata (solo C, día gym)','—','200 g'],['Aceite de oliva','10 g','10 g']]},
  a4:{n:'Carne magra a la plancha con ensalada y papa',kv:450,kc:[700,590],
-  prep:'Bife de nalga, cuadril o lomo a la plancha — o el corte magro del asado del domingo, sin grasa visible ni achuras.',
-  ing:[['Carne magra','150 g','220 g'],['Papa o choclo','100 g','250 g gym / 120 g descanso'],['Ensaladas','plato','plato'],['Aceite de oliva','10 g','10 g']]},
+  prep:'Bife de nalga, cuadril o lomo a la plancha — o el corte magro del asado del domingo, sin grasa visible ni achuras. Ensalada: hojas verdes, tomate, cebolla y zanahoria.',
+  ing:[['Carne magra','150 g','220 g'],['Papa o choclo','100 g','250 g gym / 120 g descanso'],['Ensalada (hojas verdes, tomate, cebolla, zanahoria)','plato','plato'],['Aceite de oliva','10 g','10 g']]},
  m1:{n:'Tostada con ricota y tomate',kv:190,kc:300,
   prep:'Pan tostado con ricota, tomate y orégano. C: doble porción de ricota.',
   ing:[['Pan integral','1 rebanada (30 g)','2 rebanadas (60 g)'],['Ricota','50 g','100 g'],['Tomate','rodajas','rodajas']]},
@@ -467,14 +484,14 @@ const MEALS={
   prep:'Dejar la chía 10 min en el yogur. C: sumar frutos secos (20 g) o usar yogur proteico.',
   ing:[['Yogur','1 u (125 g)','1 proteico'],['Semillas de chía','10 g','10 g'],['Frutos secos (C)','—','20 g']]},
  c1:{n:'Omelette de espinaca y queso + ensalada',kv:360,kc:520,
-  prep:'Saltear la espinaca, sumar los huevos batidos y el queso. C: acompañar con 1 rebanada de pan integral.',
-  ing:[['Huevos','2 u','3 u'],['Espinaca o acelga','100 g','120 g'],['Queso port salut','30 g','40 g'],['Ensalada','plato','plato'],['Pan integral (C)','—','1 rebanada'],['Aceite de oliva','5 g','5 g']]},
+  prep:'Saltear la espinaca, sumar los huevos batidos y el queso. Ensalada de acompañamiento: hojas verdes, tomate y pepino. C: acompañar con 1 rebanada de pan integral.',
+  ing:[['Huevos','2 u','3 u'],['Espinaca o acelga','100 g','120 g'],['Queso port salut','30 g','40 g'],['Ensalada (hojas verdes, tomate, pepino)','plato','plato'],['Pan integral (C)','—','1 rebanada'],['Aceite de oliva','5 g','5 g']]},
  c2:{n:'Merluza al horno con puré de calabaza',kv:350,kc:490,
   prep:'Merluza al horno con limón y aromáticos. Puré de calabaza sin manteca (chorrito de leche) + brócoli al vapor.',
   ing:[['Merluza','150 g','220 g'],['Calabaza','200 g','300 g'],['Brócoli','100 g','150 g'],['Aceite de oliva','10 g','10 g']]},
  c3:{n:'Bolognesa magra con fideos integrales',kv:490,kc:[700,580],
-  prep:'Carne picada ESPECIAL (no común) con salsa de tomate y verduras. Fideos integrales o de legumbres.',
-  ing:[['Carne picada especial','100 g','150 g'],['Fideos integrales cocidos','100 g','200 g gym / 120 g descanso'],['Salsa de tomate','150 g','200 g'],['Ensalada','plato','plato']]},
+  prep:'Carne picada ESPECIAL (no común) con salsa de tomate y verduras. Fideos integrales o de legumbres. Ensalada: rúcula, tomate cherry y zanahoria.',
+  ing:[['Carne picada especial','100 g','150 g'],['Fideos integrales cocidos','100 g','200 g gym / 120 g descanso'],['Salsa de tomate','150 g','200 g'],['Ensalada (rúcula, tomate cherry, zanahoria)','plato','plato']]},
  c4:{n:'Comida libre / social 🍽',kv:700,kc:800,
   prep:'Planificada y sin culpa: es parte del plan (regla 80/20). Si salen: plato con proteína visible + verduras; frituras y panera con criterio. Calorías estimadas.',
   ing:[['A elección','—','—']]},
@@ -523,15 +540,52 @@ const DEFAULT_STATE = {
 
 /* =================== STORAGE =================== */
 const KEY='nutriplan:data';
+// ¿Estamos dentro de Claude o publicados (Vercel)?
+const ON_CLAUDE = /claude\.ai|anthropic\.com|usercontent|claudeusercontent/.test(location.hostname) || location.protocol==='blob:';
+let BACKEND_OK = false; // se determina en el primer fetch a /api/state
+
 const store={
   async get(){
+    // 1) Dentro de Claude: almacenamiento nativo compartido
     if(window.storage){ try{ const r=await window.storage.get(KEY,true); return r?JSON.parse(r.value):null; }catch(e){ return null; } }
+    // 2) Publicado: intentar backend compartido (sincroniza entre dispositivos)
+    if(!ON_CLAUDE){
+      try{
+        const r=await fetch('/api/state');
+        const data=await r.json();
+        if(data && !data._noBackend){
+          BACKEND_OK=true;
+          try{ localStorage.setItem(KEY,JSON.stringify(data)); }catch(e){}
+          return (data && Object.keys(data).length) ? data : null;
+        }
+      }catch(e){ /* sin backend: cae a localStorage */ }
+    }
+    // 3) Fallback local
     try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; }
   },
   async set(state){
     const s=JSON.stringify(state);
     if(window.storage){ try{ await window.storage.set(KEY,s,true); return; }catch(e){} }
+    // guardar siempre local (cache/offline)
     try{ localStorage.setItem(KEY,s); }catch(e){}
+    // y empujar al backend si está disponible
+    if(!ON_CLAUDE && BACKEND_OK){
+      try{ await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})}); }catch(e){}
+    }
+  },
+  // Refresca desde el backend y aplica si cambió (para sincronizar compras entre dispositivos)
+  async pull(){
+    if(ON_CLAUDE || !BACKEND_OK) return false;
+    try{
+      const r=await fetch('/api/state');
+      const data=await r.json();
+      if(data && !data._noBackend && Object.keys(data).length){
+        STATE=data;
+        try{ localStorage.setItem(KEY,JSON.stringify(data)); }catch(e){}
+        return true;
+      }
+    }catch(e){}
+    return false;
   }
 };
 
@@ -681,6 +735,10 @@ function enter(u){
   document.getElementById('chipName').textContent=meta.name;
   document.getElementById('wDate').value=new Date().toISOString().slice(0,10);
   renderAll();
+  let lastTab='plan';
+  try{ lastTab=localStorage.getItem('nutritino:lastTab')||'plan'; }catch(e){}
+  if(!['plan','compras','peso','stats'].includes(lastTab)) lastTab='plan';
+  switchView(lastTab);
 }
 async function logout(){
   await session.clear();
@@ -698,9 +756,10 @@ function switchView(v){
     document.getElementById('view-'+x).style.display = x===v?'block':'none';
     document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
   });
-  if(v==='compras') renderShopping();
+  if(v==='compras'){ store.pull().then(changed=>{ if(changed) renderShopping(); }); renderShopping(); }
   if(v==='peso') renderEntries();
   if(v==='stats') renderStats();
+  try{ localStorage.setItem('nutritino:lastTab', v); }catch(e){}
 }
 
 /* =================== PLAN =================== */
@@ -755,8 +814,8 @@ function renderDay(){
 
   const badges=[];
   if(couple){
-    if(day.office.consti) badges.push('<span class="badge">🏢 Consti oficina</span>');
-    if(day.office.valen) badges.push('<span class="badge">🏢 Valen oficina</span>');
+    if(day.office.consti) badges.push('<span class="badge">🏢 Constantino oficina</span>');
+    if(day.office.valen) badges.push('<span class="badge">🏢 Valentina oficina</span>');
   }
   if(day.fish) badges.push('<span class="badge fish">🐟 Pescado</span>');
   if(day.batch) badges.push('<span class="badge batch">🍳 Batch cooking</span>');
@@ -766,8 +825,8 @@ function renderDay(){
       : '<span class="badge gym">😴 Descanso · ½ carbos</span>');
   } else if(couple){
     badges.push(isGymDay(selectedDay,'consti')
-      ? '<span class="badge gym">🏋️ Gym Consti · carbos completos</span>'
-      : '<span class="badge gym">😴 Descanso Consti · ½ carbos</span>');
+      ? '<span class="badge gym">🏋️ Gym Constantino · carbos completos</span>'
+      : '<span class="badge gym">😴 Descanso Constantino · ½ carbos</span>');
   }
   document.getElementById('dayBadges').innerHTML=badges.join('');
 
@@ -813,6 +872,7 @@ function renderDay(){
         <div class="dish">${m.n}</div>
         <div class="mealActions">
           <button class="rBtn" aria-expanded="false" onclick="toggleRecipe(this)">Receta ▾</button>
+          <button class="rBtn" onclick="openEdit(${idx})">✎ Editar</button>
           ${restoreBtn}
           ${adhBtns}
         </div>
@@ -841,6 +901,59 @@ async function restoreMeal(day,slot){
   delete ovMap(currentUser)[day+'-'+slot];
   await store.set(STATE);
   toast('Comida restaurada al plan original');
+  renderDay();
+}
+
+let editCtx=null;
+function openEdit(idx){
+  editCtx={day:selectedDay, slot:idx};
+  const m=mealAt(selectedDay,idx,currentUser);
+  const couple=isCouple(currentUser);
+  document.getElementById('editWhen').textContent=`${DAY_NAMES[selectedDay]} · ${SLOT_LABELS[idx]}`;
+  document.getElementById('edName').value=m.n;
+  const col = couple ? null : (portionOf(currentUser)==='valen'?1:2);
+  // Para invitados mostramos 1 cantidad; para la pareja, "V | C"
+  document.getElementById('edIng').value = m.ing.map(r=>{
+    const qty = couple ? `${r[1]} | ${r[2]}` : r[col];
+    return `${r[0]} · ${qty}`;
+  }).join('\n');
+  document.getElementById('edPrep').value=m.prep||'';
+  const kc = couple ? (Array.isArray(m.kc)?m.kc[0]:m.kc) : (portionOf(currentUser)==='valen'? m.kv : (Array.isArray(m.kc)?m.kc[0]:m.kc));
+  document.getElementById('edKcal').value=kc;
+  document.getElementById('edErr').style.display='none';
+  document.getElementById('editDlg').showModal();
+  setTimeout(()=>document.getElementById('edName').focus(),50);
+}
+
+async function saveEdit(){
+  const err=(msg)=>{ const e=document.getElementById('edErr'); e.textContent=msg; e.style.display='block'; };
+  const name=document.getElementById('edName').value.trim();
+  const prep=document.getElementById('edPrep').value.trim();
+  const kcal=parseInt(document.getElementById('edKcal').value,10);
+  const lines=document.getElementById('edIng').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  if(!name) return err('Poné un nombre al plato.');
+  if(!lines.length) return err('Agregá al menos un ingrediente.');
+  if(!kcal || kcal<50) return err('Poné las calorías aproximadas.');
+  const couple=isCouple(currentUser);
+  const ing=lines.map(l=>{
+    const parts=l.split('·').map(s=>s.trim());
+    const nombre=parts[0]||l;
+    const cant=parts[1]||'';
+    if(couple){
+      const cols=cant.split('|').map(s=>s.trim());
+      return [nombre, cols[0]||cant||'—', cols[1]||cols[0]||cant||'—'];
+    }
+    // invitado: misma cantidad en ambas columnas (solo ve la suya)
+    return [nombre, cant||'—', cant||'—'];
+  });
+  const meal={ n:name, prep:prep||'—', ing, by:currentUser, date:new Date().toISOString().slice(0,10) };
+  if(couple){ meal.kv=kcal; meal.kc=kcal; }
+  else if(portionOf(currentUser)==='valen'){ meal.kv=kcal; meal.kc=kcal; }
+  else { meal.kv=kcal; meal.kc=kcal; }
+  ovMap(currentUser)[editCtx.day+'-'+editCtx.slot]=meal;
+  await store.set(STATE);
+  document.getElementById('editDlg').close();
+  toast('Menú actualizado ✓ (guardado en tu perfil)');
   renderDay();
 }
 
@@ -938,9 +1051,11 @@ function shoppingData(){
   ];
 }
 
+function shopScope(){ return isCouple(currentUser) ? 'shared' : currentUser; }
+
 function renderShopping(){
   const wrap=document.getElementById('shopList');
-  const checked=(STATE.shopping&&STATE.shopping[currentUser])||{};
+  const checked=(STATE.shopping&&STATE.shopping[shopScope()])||{};
   const data=shoppingData();
   const single=!isCouple(currentUser);
   const singlePset=portionOf(currentUser);
@@ -960,16 +1075,17 @@ function renderShopping(){
 }
 
 async function toggleShop(key){
+  const scope=shopScope();
   if(!STATE.shopping) STATE.shopping={};
-  if(!STATE.shopping[currentUser]) STATE.shopping[currentUser]={};
-  const c=STATE.shopping[currentUser];
+  if(!STATE.shopping[scope]) STATE.shopping[scope]={};
+  const c=STATE.shopping[scope];
   if(c[key]) delete c[key]; else c[key]=1;
   await store.set(STATE);
   renderShopping();
 }
 
 async function resetShopping(){
-  if(STATE.shopping) STATE.shopping[currentUser]={};
+  if(STATE.shopping) STATE.shopping[shopScope()]={};
   await store.set(STATE);
   renderShopping();
   toast('Lista reiniciada');
@@ -1000,7 +1116,7 @@ Usuario que te escribe ahora: ${meta.name}. Tus cambios se aplican al menú comp
   } else {
     ctx=`una app de plan alimentario. Usuario: ${meta.name}, ${meta.height} m${prof.target?`, objetivo ${prof.target} kg`:''}. Sigue el plan base con porciones tipo ${pset==='valen'?'déficit (~1500 kcal/día, proteína ~100-115 g)':'recomposición (~2100-2300 kcal/día, proteína alta, carbos completos días de gym y mitad los de descanso)'}. Tus cambios solo afectan SU menú personal.`;
   }
-  return `Sos el chef-nutricionista de NutriPlan, ${ctx}
+  return `Sos el chef-nutricionista de NutriTino, ${ctx}
 Principios del plan: proteína en cada comida, mitad del plato verduras, comida real accesible en supermercados/verdulerías de Buenos Aires, ultraprocesados al mínimo, pescado 2-3x/semana, desayuno fijo (huevos revueltos con tostadas). Los slots son: 0=Desayuno, 1=Media mañana, 2=Almuerzo, 3=Merienda, 4=Cena. Los días: 0=Lunes ... 6=Domingo.
 Plan actual: ${planSnapshot()}
 
@@ -1011,7 +1127,7 @@ Reglas:
 - "changes" solo si el usuario pide un cambio concreto de comida; si no, lista vacía.
 - Al reemplazar una comida, mantené kcal similares (±15%) a la que reemplazás, misma lógica de proteína, e ingredientes con gramos.
 - "kc" puede ser número o [kcalDíaGym, kcalDíaDescanso] si el plato lleva carbohidratos variables.
-- Máximo 3 changes por respuesta. No cambies el desayuno salvo pedido explícito (es fijo a propósito).`;
+- Máximo 3 changes por respuesta. No cambies el desayuno salvo pedido explícito (es fijo a propósito).\n- Siempre que una comida incluya ensalada, detallá sus ingredientes concretos (ej: 'Ensalada (lechuga, tomate, zanahoria)') tanto en el nombre del ingrediente como en la preparación. Nunca pongas solo 'ensalada' o 'ensalada mixta' sin aclarar qué lleva.`;
 }
 
 function toggleChef(){
