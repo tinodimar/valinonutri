@@ -574,10 +574,20 @@ const store={
     if(window.storage){ try{ await window.storage.set(KEY,s,true); return; }catch(e){} }
     // guardar siempre local (cache/offline)
     try{ localStorage.setItem(KEY,s); }catch(e){}
-    // y SIEMPRE empujar al backend cuando estamos publicados
+    // y SIEMPRE empujar al backend cuando estamos publicados,
+    // preservando los tildes de compras que ya haya en la nube (para no pisarlos)
     if(USE_BACKEND){
       try{
-        const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})});
+        let toSave=state;
+        try{
+          const rr=await fetch('/api/state');
+          const remote=await rr.json();
+          if(remote && !remote._noBackend && remote.shopping){
+            const mergedShopping={...remote.shopping, ...(state.shopping||{})};
+            toSave={...state, shopping:mergedShopping};
+          }
+        }catch(e){}
+        const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:toSave})});
         const j=await r.json().catch(()=>({}));
         SYNC_STATUS = r.ok && j.ok ? 'backend OK · guardado' : ('guardado falló: '+(j.error||('HTTP '+r.status)));
       }catch(e){ SYNC_STATUS='error al guardar: '+String(e).slice(0,60); }
@@ -1100,54 +1110,44 @@ async function toggleShop(key){
   const scope=shopScope();
   if(!STATE.shopping) STATE.shopping={};
   if(!STATE.shopping[scope]) STATE.shopping[scope]={};
-  // 1) Aplicar de inmediato y redibujar (nunca bloquea el tap)
+  // 1) Aplicar de inmediato y redibujar
   if(STATE.shopping[scope][key]) delete STATE.shopping[scope][key]; else STATE.shopping[scope][key]=1;
   renderShopping();
-  // 2) Guardar local siempre (rápido, sin await de red)
+  // 2) Guardar local
   try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
-  // 3) Sincronizar en segundo plano, sin bloquear ni re-renderizar
+  // 3) Subir al backend (sin debounce; cada tilde persiste)
   if(USE_BACKEND) pushShopping(scope);
 }
 
-// Empuja SOLO los tildes de compras de este grupo al backend, fusionando con lo remoto.
-// Corre en segundo plano; si falla, no afecta la interacción.
-let _pushTimer=null;
+// Sube al backend el estado completo, preservando lo remoto y sobreescribiendo
+// solo los tildes de compras de este grupo con los locales.
 function pushShopping(scope){
-  clearTimeout(_pushTimer);
-  _pushTimer=setTimeout(async ()=>{
+  (async ()=>{
     try{
-      const ctrl=new AbortController();
-      const t=setTimeout(()=>ctrl.abort(),8000);
-      const r=await fetch('/api/state',{signal:ctrl.signal});
-      clearTimeout(t);
+      const r=await fetch('/api/state');
       const remote=await r.json();
-      const base=(remote && !remote._noBackend && typeof remote==='object') ? remote : JSON.parse(JSON.stringify(STATE));
+      const base=(remote && !remote._noBackend && typeof remote==='object' && Object.keys(remote).length)
+        ? remote : JSON.parse(JSON.stringify(STATE));
       base.shopping = base.shopping || {};
-      base.shopping[scope] = {...(STATE.shopping[scope]||{})}; // los tildes locales de este grupo mandan
+      base.shopping[scope] = {...(STATE.shopping[scope]||{})};
       const pr=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:base})});
       const pj=await pr.json().catch(()=>({}));
       SYNC_STATUS = pr.ok && pj.ok ? 'backend OK · compras guardadas' : ('guardado falló: '+(pj.error||('HTTP '+pr.status)));
-      const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
-    }catch(e){
-      SYNC_STATUS='error al guardar compras: '+String(e).slice(0,60);
-      const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
-    }
-  },400);
+    }catch(e){ SYNC_STATUS='error al guardar: '+String(e).slice(0,60); }
+    const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
+  })();
 }
 
-// Trae del backend SOLO los tildes de compras del grupo actual y los aplica.
+// Trae del backend los tildes del grupo actual y los aplica (para ver cambios de otro dispositivo).
 async function pullShopping(){
   if(!USE_BACKEND) return;
   const scope=shopScope();
   try{
-    const ctrl=new AbortController();
-    const t=setTimeout(()=>ctrl.abort(),8000);
-    const r=await fetch('/api/state',{signal:ctrl.signal});
-    clearTimeout(t);
+    const r=await fetch('/api/state');
     const remote=await r.json();
-    if(remote && !remote._noBackend && remote.shopping && remote.shopping[scope]){
+    if(remote && !remote._noBackend && typeof remote==='object'){
       if(!STATE.shopping) STATE.shopping={};
-      STATE.shopping[scope]=remote.shopping[scope];
+      STATE.shopping[scope] = (remote.shopping && remote.shopping[scope]) ? remote.shopping[scope] : (STATE.shopping[scope]||{});
       try{ localStorage.setItem(KEY,JSON.stringify(STATE)); }catch(e){}
       renderShopping();
     }
