@@ -551,14 +551,17 @@ const store={
     // 2) Publicado: intentar backend compartido (sincroniza entre dispositivos)
     if(!ON_CLAUDE){
       try{
-        const r=await fetch('/api/state');
+        const ctrl=new AbortController();
+        const t=setTimeout(()=>ctrl.abort(),8000);
+        const r=await fetch('/api/state',{signal:ctrl.signal});
+        clearTimeout(t);
         const data=await r.json();
         if(data && !data._noBackend){
           BACKEND_OK=true;
           try{ localStorage.setItem(KEY,JSON.stringify(data)); }catch(e){}
           return (data && Object.keys(data).length) ? data : null;
         }
-      }catch(e){ /* sin backend: cae a localStorage */ }
+      }catch(e){ /* sin backend o timeout: cae a localStorage */ }
     }
     // 3) Fallback local
     try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; }
@@ -619,7 +622,15 @@ const session={
 
 /* =================== LOGIN =================== */
 async function init(){
-  STATE = (await store.get()) || JSON.parse(JSON.stringify(DEFAULT_STATE));
+  try{
+    STATE = (await store.get()) || JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }catch(e){
+    STATE = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  }
+  // asegurar estructura base (defensivo: evita pantalla en blanco si el estado viene incompleto)
+  if(!STATE || typeof STATE!=='object') STATE = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  if(!STATE.weights) STATE.weights={};
+  if(!STATE.profiles) STATE.profiles=JSON.parse(JSON.stringify(DEFAULT_STATE.profiles));
   // migraciones suaves
   if(!STATE.weights.consti && STATE.weights.con) STATE.weights.consti = STATE.weights.con;
   if(!STATE.weights.valen) STATE.weights.valen=[];
@@ -628,15 +639,18 @@ async function init(){
   if(!STATE.users) STATE.users={};
   if(!STATE.shopping) STATE.shopping={};
   if(!STATE.overrides) STATE.overrides={};
-  // migrar overrides planos al espacio compartido de la pareja
-  const flat=Object.keys(STATE.overrides).filter(k=>/^\d-\d$/.test(k));
-  if(flat.length){ const sh=STATE.overrides.shared||{}; flat.forEach(k=>{ sh[k]=STATE.overrides[k]; delete STATE.overrides[k]; }); STATE.overrides.shared=sh; }
+  try{
+    const flat=Object.keys(STATE.overrides).filter(k=>/^\d-\d$/.test(k));
+    if(flat.length){ const sh=STATE.overrides.shared||{}; flat.forEach(k=>{ sh[k]=STATE.overrides[k]; delete STATE.overrides[k]; }); STATE.overrides.shared=sh; }
+  }catch(e){}
   renderLoginGrid();
   // auto-login si hay sesión recordada
-  const s=await session.getAsync();
-  if(s && s.user && profOf(s.user)) enter(s.user);
+  try{
+    const s=await session.getAsync();
+    if(s && s.user && profOf(s.user)) enter(s.user);
+  }catch(e){}
 }
-init();
+init().catch(()=>{ try{ renderLoginGrid(); }catch(e){} });
 
 function renderLoginGrid(){
   const g=document.getElementById('profileGrid'); if(!g||!STATE) return;
