@@ -1,4 +1,4 @@
-// api/chef.js — Vercel Serverless Function
+// api/chef.js — Vercel Serverless Functio
 // La API key vive acá (en el servidor de Vercel), nunca en el navegador.
 
 export default async function handler(req, res) {
