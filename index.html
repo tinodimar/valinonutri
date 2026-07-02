@@ -349,6 +349,7 @@
     <section id="view-compras" style="display:none">
       <h2 class="sectionTitle">Lista de compras semanal</h2>
       <p class="hint" style="margin:0 2px 12px">🗓️ Hacela los domingos para toda la semana. Generada desde el menú actual (incluye tus cambios del chef). Tocá cada ítem para tacharlo.</p>
+      <p class="hint" id="syncStatus" style="margin:0 2px 12px;font-size:.72rem;opacity:.7"></p>
       <div id="shopList"></div>
       <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetShopping()">↺ Destildar todo</button>
     </section>
@@ -543,6 +544,7 @@ const KEY='nutriplan:data';
 // ¿Estamos dentro de Claude o publicados (Vercel)?
 const ON_CLAUDE = /claude\.ai|anthropic\.com|usercontent|claudeusercontent/.test(location.hostname) || location.protocol==='blob:';
 const USE_BACKEND = !ON_CLAUDE && !window.storage; // publicado (no Claude): usar backend siempre
+let SYNC_STATUS = USE_BACKEND ? 'sin probar aún' : (ON_CLAUDE?'entorno Claude (no aplica)':'sin backend');
 
 const store={
   async get(){
@@ -556,11 +558,13 @@ const store={
         const r=await fetch('/api/state',{signal:ctrl.signal});
         clearTimeout(t);
         const data=await r.json();
-        if(data && !data._noBackend){
+        if(data && data._noBackend){ SYNC_STATUS='backend NO configurado (falta KV en Vercel)'; }
+        else if(data){
+          SYNC_STATUS='backend OK · leído';
           try{ localStorage.setItem(KEY,JSON.stringify(data)); }catch(e){}
           return (data && Object.keys(data).length) ? data : null;
         }
-      }catch(e){ /* timeout o error: cae a localStorage */ }
+      }catch(e){ SYNC_STATUS='error al leer: '+String(e).slice(0,60); }
     }
     // 3) Fallback local
     try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; }
@@ -572,7 +576,11 @@ const store={
     try{ localStorage.setItem(KEY,s); }catch(e){}
     // y SIEMPRE empujar al backend cuando estamos publicados
     if(USE_BACKEND){
-      try{ await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})}); }catch(e){}
+      try{
+        const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})});
+        const j=await r.json().catch(()=>({}));
+        SYNC_STATUS = r.ok && j.ok ? 'backend OK · guardado' : ('guardado falló: '+(j.error||('HTTP '+r.status)));
+      }catch(e){ SYNC_STATUS='error al guardar: '+String(e).slice(0,60); }
     }
   },
   // Refresca desde el backend y aplica si cambió (para sincronizar compras entre dispositivos)
@@ -1085,6 +1093,7 @@ function renderShopping(){
     const doneCount=c.items.filter((_,ii)=>checked[ci+'-'+ii]).length;
     return `<div class="shopCat"><h4>${c.cat}<span>${doneCount}/${total}</span></h4>${rows}</div>`;
   }).join('');
+  const ss=document.getElementById('syncStatus'); if(ss) ss.textContent='Sincronización: '+SYNC_STATUS;
 }
 
 async function toggleShop(key){
@@ -1115,8 +1124,14 @@ function pushShopping(scope){
       const base=(remote && !remote._noBackend && typeof remote==='object') ? remote : JSON.parse(JSON.stringify(STATE));
       base.shopping = base.shopping || {};
       base.shopping[scope] = {...(STATE.shopping[scope]||{})}; // los tildes locales de este grupo mandan
-      await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:base})});
-    }catch(e){ /* silencioso: el tilde local ya quedó guardado */ }
+      const pr=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state:base})});
+      const pj=await pr.json().catch(()=>({}));
+      SYNC_STATUS = pr.ok && pj.ok ? 'backend OK · compras guardadas' : ('guardado falló: '+(pj.error||('HTTP '+pr.status)));
+      const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
+    }catch(e){
+      SYNC_STATUS='error al guardar compras: '+String(e).slice(0,60);
+      const el=document.getElementById('syncStatus'); if(el) el.textContent='Sincronización: '+SYNC_STATUS;
+    }
   },400);
 }
 
