@@ -923,13 +923,15 @@ function onPhotoPick(ev){
   reader.onload=()=>{
     const img=new Image();
     img.onload=()=>{
-      // comprimir a 256px máx, JPEG calidad 0.8 (para que entre en el estado sincronizado)
-      const max=256; let{width,height}=img;
-      if(width>height){ if(width>max){ height=height*max/width; width=max; } }
-      else { if(height>max){ width=width*max/height; height=max; } }
-      const cv=document.createElement('canvas'); cv.width=width; cv.height=height;
-      cv.getContext('2d').drawImage(img,0,0,width,height);
-      _pendingPhoto=cv.toDataURL('image/jpeg',0.8);
+      // Recorte cuadrado centrado (el círculo muestra la imagen completa y centrada)
+      const side=Math.min(img.width,img.height);
+      const sx=(img.width-side)/2, sy=(img.height-side)/2;
+      const out=256; // tamaño final del cuadrado
+      const cv=document.createElement('canvas'); cv.width=out; cv.height=out;
+      const ctx=cv.getContext('2d');
+      // dibujar solo el cuadrado central de la foto, escalado a 256x256
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, out, out);
+      _pendingPhoto=cv.toDataURL('image/jpeg',0.85);
       const prev=document.getElementById('photoPreview');
       prev.style.backgroundImage=`url(${_pendingPhoto})`; prev.textContent='';
       document.getElementById('photoRemoveBtn').style.display='';
