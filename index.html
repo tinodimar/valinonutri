@@ -261,6 +261,8 @@
   .shopItem .qty{margin-left:auto;margin-right:8px;font-weight:700;color:var(--muted);font-size:.82rem}
   .buyBtn{border:1.5px solid var(--gold);background:transparent;color:#8a6d12;border-radius:8px;padding:5px 9px;font-family:'Karla';font-weight:700;font-size:.72rem;cursor:pointer;flex-shrink:0;white-space:nowrap}
   .buyBtn.active{background:var(--gold);color:#3a2f08}
+  .delBtn{border:1.5px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:5px 9px;font-family:'Karla';font-weight:700;font-size:.72rem;cursor:pointer;flex-shrink:0}
+  .delBtn:hover{border-color:var(--danger);color:var(--danger)}
   .shopItem.onbuy{background:#FBF6E6}
   .buyCat h4{background:#F3E9C8;color:#8a6d12}
   .shopItem.buy{cursor:pointer}
@@ -1162,73 +1164,38 @@ async function clearSwap(idx){
 /* Lista curada por categoría. base = para 1 persona/semana con este plan.
    Para la pareja se muestran cantidades combinadas; para invitados, 1 persona. */
 function shoppingData(){
-  const couple=isCouple(currentUser);
-  const scale=(a,b)=> couple? a : b;
   return [
    {cat:'Huevos y lácteos', items:[
-     ['Huevos', scale('3 maples (90 u)','1 maple + ½ (45 u)')],
-     ['Yogur natural o proteico', scale('12 potes / 2 kg','7 potes / 1 kg')],
-     ['Ricota', scale('500 g','250 g')],
-     ['Queso port salut', scale('300 g','200 g')],
-     ['Leche', scale('1 L','1 L')],
+     'Huevos','Yogur natural o proteico','Ricota','Queso port salut','Queso cremoso',
+     'Leche','Manteca','Crema','Dulce de leche',
    ]},
    {cat:'Proteínas', items:[
-     ['Pechuga de pollo', scale('1.2 kg','700 g')],
-     ['Nalga o cuadril', scale('700 g','400 g')],
-     ['Carne picada especial', scale('300 g','200 g')],
-     ['Merluza (filet congelado)', scale('600 g','350 g')],
-     ['Atún al natural (lata)', scale('6 latas','3 latas')],
+     'Pechuga de pollo','Pata-muslo de pollo','Nalga o cuadril','Carne picada especial',
+     'Milanesas','Merluza (filet congelado)','Salmón','Atún al natural (lata)','Cerdo','Jamón cocido',
    ]},
    {cat:'Verduras (estación invierno)', items:[
-     ['Zapallo / calabaza', scale('1 grande','1 chica')],
-     ['Morrón', scale('4 u','2 u')],
-     ['Zanahoria', scale('1 kg','500 g')],
-     ['Cebolla', scale('1 kg','500 g')],
-     ['Lechuga', scale('2 plantas','1 planta')],
-     ['Rúcula', scale('1 atado','1 atado')],
-     ['Espinaca', scale('1 atado','1 atado')],
-     ['Acelga', scale('1 atado','1 atado')],
-     ['Brócoli', scale('2 u','1 u')],
-     ['Tomate', scale('1 kg','500 g')],
-     ['Pepino', scale('3 u','2 u')],
-     ['Papa', scale('1 kg','500 g')],
-     ['Batata', scale('500 g','300 g')],
-     ['Palta', scale('4 u','2 u')],
-     ['Choclo', scale('2 u','1 u')],
-     ['Chauchas', scale('300 g','200 g')],
+     'Zapallo / calabaza','Morrón','Zanahoria','Cebolla','Ajo','Lechuga','Rúcula','Espinaca','Acelga',
+     'Brócoli','Coliflor','Tomate','Pepino','Papa','Batata','Palta','Choclo','Chauchas','Zapallito','Berenjena',
    ]},
    {cat:'Frutas', items:[
-     ['Banana', scale('12 u','7 u')],
-     ['Manzana', scale('6 u','4 u')],
-     ['Pera', scale('4 u','2 u')],
-     ['Naranja', scale('6 u','4 u')],
-     ['Mandarina', scale('6 u','4 u')],
-     ['Kiwi', scale('6 u','4 u')],
-     ['Frutillas', scale('1 caja','1 caja')],
+     'Banana','Manzana','Pera','Naranja','Mandarina','Kiwi','Frutillas','Uva','Limón','Arándanos',
    ]},
    {cat:'Almacén', items:[
-     ['Avena arrollada', scale('500 g','300 g')],
-     ['Pan integral', scale('2 paquetes','1 paquete')],
-     ['Arroz integral', scale('1 kg','500 g')],
-     ['Fideos integrales', scale('500 g','500 g')],
-     ['Lentejas', scale('500 g','300 g')],
-     ['Garbanzos', scale('400 g','400 g')],
-     ['Galletas de arroz', scale('2 paquetes','1 paquete')],
-     ['Salsa de tomate / triturado', scale('4 u','2 u')],
-     ['Aceite de oliva', scale('500 ml','500 ml')],
-     ['Semillas de chía', scale('250 g','250 g')],
-     ['Mantequilla de maní sin azúcar', scale('1 frasco','1 frasco')],
-     ['Almendras', scale('200 g','150 g')],
-     ['Nueces', scale('200 g','150 g')],
+     'Avena arrollada','Pan integral','Arroz integral','Fideos integrales','Lentejas','Garbanzos','Porotos',
+     'Quinoa','Harina integral','Galletas de arroz','Salsa de tomate / triturado','Aceite de oliva','Aceite común',
+     'Vinagre','Sal','Semillas de chía','Mantequilla de maní sin azúcar','Almendras','Nueces','Café','Té','Yerba',
+   ]},
+   {cat:'Limpieza y hogar', items:[
+     'Papel higiénico','Rollo de cocina','Detergente','Esponja','Lavandina','Jabón para ropa',
+     'Bolsas de residuo','Servilletas','Film / papel aluminio',
    ]},
    {cat:'Solo Constantino', hideForValen:true, items:[
-     ['Whey protein', '1 pote (según stock)'],
-     ['Creatina monohidrato', '1 pote (según stock)'],
+     'Whey protein','Creatina monohidrato',
    ]},
   ];
 }
 
-const SHOP_CATS=['Huevos y lácteos','Proteínas','Verduras (estación invierno)','Frutas','Almacén','Solo Constantino','Otros'];
+const SHOP_CATS=['Huevos y lácteos','Proteínas','Verduras (estación invierno)','Frutas','Almacén','Limpieza y hogar','Solo Constantino','Otros'];
 
 function shopScope(){ return isCouple(currentUser) ? 'shared' : currentUser; }
 
@@ -1248,7 +1215,7 @@ function shopState(){
   if(!s.custom) s.custom=[];
   // La lista de productos base cambió de estructura (v2): las claves posicionales viejas
   // ya no corresponden. Limpiamos una sola vez los flags de ítems base, conservando los custom.
-  if(s._v!==2){ s.items={}; s._v=2; }
+  if(s._v!==3){ s.items={}; if(s.hidden) s.hidden={}; s._v=3; }
   STATE.shopping[scope]=s;
   return s;
 }
@@ -1259,20 +1226,21 @@ function renderShopping(){
   const data=shoppingData();
   const single=!isCouple(currentUser);
   const singlePset=portionOf(currentUser);
+  const hidden=s.hidden||{};
 
   // 1) Sección "Para comprar" (todo lo marcado buy=true)
   const buyList=[];
   data.forEach((c,ci)=>{
     if(c.hideForValen && single && singlePset!=='consti') return;
-    c.items.forEach((it,ii)=>{ const st=s.items[ci+'-'+ii]; if(st&&st.buy) buyList.push({name:it[0],qty:it[1],key:ci+'-'+ii,custom:false}); });
+    c.items.forEach((it,ii)=>{ const key=ci+'-'+ii; if(hidden[key]) return; const st=s.items[key]; if(st&&st.buy) buyList.push({name:it,key,custom:false}); });
   });
-  s.custom.forEach((ci,i)=>{ if(ci.buy) buyList.push({name:ci.name,qty:ci.qty||'',key:'c'+i,custom:true}); });
+  s.custom.forEach((ci,i)=>{ if(ci.buy) buyList.push({name:ci.name,key:'c'+i,custom:true}); });
 
   let html='';
   if(buyList.length){
     const rows=buyList.map(b=>`<div class="shopItem buy" onclick="toggleBuy('${b.key}')">
       <div class="box buybox">🛒</div>
-      <span class="name">${b.name}</span><span class="qty">${b.qty}</span></div>`).join('');
+      <span class="name">${b.name}</span></div>`).join('');
     html+=`<div class="shopCat buyCat"><h4>🛒 Para comprar<span>${buyList.length}</span></h4>${rows}</div>`;
   }
 
@@ -1282,15 +1250,16 @@ function renderShopping(){
   data.forEach((c,ci)=>{
     if(c.hideForValen && single && singlePset!=='consti') return;
     c.items.forEach((it,ii)=>{
-      const key=ci+'-'+ii; const st=s.items[key]||{};
+      const key=ci+'-'+ii; if(hidden[key]) return;
+      const st=s.items[key]||{};
       cats[c.cat]=cats[c.cat]||[];
-      cats[c.cat].push({name:it[0],qty:it[1],key,stock:!!st.stock,buy:!!st.buy,custom:false});
+      cats[c.cat].push({name:it,key,stock:!!st.stock,buy:!!st.buy,custom:false});
     });
   });
   s.custom.forEach((ci,i)=>{
     const cat=SHOP_CATS.includes(ci.cat)?ci.cat:'Otros';
     cats[cat]=cats[cat]||[];
-    cats[cat].push({name:ci.name,qty:ci.qty||'',key:'c'+i,stock:!!ci.stock,buy:!!ci.buy,custom:true});
+    cats[cat].push({name:ci.name,key:'c'+i,stock:!!ci.stock,buy:!!ci.buy,custom:true});
   });
 
   SHOP_CATS.forEach(catName=>{
@@ -1298,14 +1267,11 @@ function renderShopping(){
     const rows=list.map(o=>{
       const stockCls=o.stock?'done':'';
       const buyCls=o.buy?'onbuy':'';
-      const tag=o.custom?' <span class="customTag">agregado</span>':'';
-      const delBtn=o.custom?`<button class="buyBtn" style="border-color:var(--line);color:var(--muted)" onclick="delCustom('${o.key}')" title="Quitar">✕</button>`:'';
       return `<div class="shopItem ${stockCls} ${buyCls}">
         <div class="box" onclick="toggleStock('${o.key}')" title="Marcar si hay stock en casa">${o.stock?'✓':''}</div>
-        <span class="name" onclick="toggleStock('${o.key}')">${o.name}${tag}</span>
-        <span class="qty">${o.qty}</span>
+        <span class="name" onclick="toggleStock('${o.key}')">${o.name}</span>
         <button class="buyBtn ${o.buy?'active':''}" onclick="toggleBuy('${o.key}')" title="Agregar a lista de súper">${o.buy?'✓ En lista':'+ súper'}</button>
-        ${delBtn}
+        <button class="delBtn" onclick="delItem('${o.key}')" title="Quitar de la lista">✕</button>
       </div>`;
     }).join('');
     const stockCount=list.filter(o=>o.stock).length;
@@ -1323,10 +1289,20 @@ function _findItem(key){
   return {type:'item', obj:s.items[key], s};
 }
 
-async function delCustom(key){
-  const i=parseInt(key.slice(1),10);
+// Elimina cualquier producto de la lista: custom se borra, base se oculta.
+async function delItem(key){
   const s=shopState();
-  if(!isNaN(i) && s.custom[i]){ s.custom.splice(i,1); await saveShopping(); renderShopping(); toast('Producto quitado'); }
+  if(key[0]==='c'){
+    const i=parseInt(key.slice(1),10);
+    if(!isNaN(i) && s.custom[i]) s.custom.splice(i,1);
+  } else {
+    if(!s.hidden) s.hidden={};
+    s.hidden[key]=1;
+    delete s.items[key];
+  }
+  await saveShopping();
+  renderShopping();
+  toast('Producto quitado');
 }
 
 async function toggleStock(key){
@@ -1396,24 +1372,23 @@ async function addProduct(){
   if(!text){ return; }
   const btn=document.getElementById('addProdBtn');
   btn.disabled=true; btn.textContent='…';
-  let cat='Otros', name=text, qty='';
+  let cat='Otros', name=text;
   try{
     const onC = /claude\.ai|anthropic\.com|usercontent|claudeusercontent/.test(location.hostname) || location.protocol==='blob:';
-    const sys=`Categorizás un producto de supermercado para una lista de compras. Categorías válidas EXACTAS: ${SHOP_CATS.join(', ')}. Respondé SOLO JSON sin markdown: {"name":"nombre limpio del producto","qty":"cantidad si el texto la menciona, si no vacío","cat":"una de las categorías válidas"}. Ejemplo: entrada "2 paquetes de fideos" -> {"name":"Fideos","qty":"2 paquetes","cat":"Almacén"}.`;
+    const sys=`Categorizás un producto para una lista de compras del hogar. Categorías válidas EXACTAS: ${SHOP_CATS.join(', ')}. Respondé SOLO JSON sin markdown: {"name":"nombre limpio y corto del producto, sin cantidad","cat":"una de las categorías válidas"}. Ejemplos: "2 paquetes de fideos" -> {"name":"Fideos","cat":"Almacén"}; "shampoo" -> {"name":"Shampoo","cat":"Limpieza y hogar"}; "frutillas" -> {"name":"Frutillas","cat":"Frutas"}.`;
     const endpoint = onC ? 'https://api.anthropic.com/v1/messages' : '/api/chef';
     const payload = onC
-      ? { model:'claude-sonnet-4-5', max_tokens:200, system:sys, messages:[{role:'user',content:text}] }
+      ? { model:'claude-sonnet-4-5', max_tokens:150, system:sys, messages:[{role:'user',content:text}] }
       : { system:sys, messages:[{role:'user',content:text}] };
     const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await r.json();
     const raw=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('');
     const p=JSON.parse(raw.replace(/```json|```/g,'').trim());
     if(p.name) name=p.name;
-    if(p.qty) qty=p.qty;
     if(p.cat && SHOP_CATS.includes(p.cat)) cat=p.cat;
   }catch(e){ /* si falla el agente, cae en "Otros" con el texto tal cual */ }
   const s=shopState();
-  s.custom.push({name, qty, cat, stock:false, buy:true}); // por defecto lo pone en la lista de súper
+  s.custom.push({name, cat, stock:false, buy:true}); // por defecto lo pone en la lista de súper
   await saveShopping();
   inp.value='';
   btn.disabled=false; btn.textContent='Agregar';
