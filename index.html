@@ -2,25 +2,32 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>NutriTino · Valentina & Constantino</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#5F8957">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="NutriTino">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Karla:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root{
-    --ink:#1E2A21;
-    --paper:#F5F2EA;
+    --ink:#144029;
+    --paper:#F3EFE3;
     --card:#FFFFFF;
-    --sage:#5E7153;
-    --sage-soft:#E6EBDD;
-    --line:#D9D4C5;
+    --sage:#5F8957;
+    --sage-soft:#E4EBD9;
+    --line:#D3D6C4;
     --valen:#B04A6E;
     --valen-soft:#F6E4EB;
     --consti:#2E6E6A;
     --consti-soft:#DFEDEB;
     --gold:#C9A227;
-    --muted:#7A7668;
+    --muted:#7C8072;
     --danger:#B23B3B;
     --radius:14px;
     font-size:16px;
@@ -35,6 +42,9 @@
   }
   .display{font-family:'Fraunces',Georgia,serif}
   .num{font-variant-numeric:tabular-nums}
+  .brandLogo{width:110px;height:110px;border-radius:50%;margin:0 auto 14px;display:block;box-shadow:0 6px 20px rgba(20,64,41,.15)}
+  /* respetar el notch / barra de estado en iPhone cuando corre como app */
+  .appbar{padding-top:max(18px, env(safe-area-inset-top))}
 
   /* ---------- layout shell ---------- */
   .shell{max-width:680px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column}
@@ -297,6 +307,7 @@
 <!-- ============ LOGIN ============ -->
 <div id="loginScreen">
   <div class="brand">
+    <img src="/icons/logo-round.png" alt="NutriTino" class="brandLogo">
     <h1>Nutri<em>Tino</em></h1>
     <p>Su plan de alimentación, a mano y con seguimiento</p>
   </div>
