@@ -91,6 +91,15 @@
   .userChip .dot{width:26px;height:26px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-family:'Fraunces',serif}
   .userChip[data-user="valen"] .dot{background:var(--valen)}
   .userChip[data-user="consti"] .dot{background:var(--consti)}
+  .chipWrap{position:relative}
+  .dot.photo, .avatar.photo{background-size:cover !important;background-position:center;color:transparent}
+  .userMenu{position:absolute;right:0;top:calc(100% + 6px);background:var(--card);border:1.5px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(30,42,33,.14);display:none;flex-direction:column;min-width:190px;z-index:60;overflow:hidden}
+  .userMenu.open{display:flex}
+  .userMenu button{border:none;background:transparent;text-align:left;padding:12px 14px;font-family:'Karla';font-weight:700;font-size:.88rem;cursor:pointer;color:var(--ink)}
+  .userMenu button:hover{background:var(--sage-soft)}
+  .photoEdit{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+  .photoPreview{width:64px;height:64px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-size:1.5rem;font-weight:700;color:#fff;flex-shrink:0}
+  .photoEdit .btn.small{font-size:.8rem;padding:8px 12px}
 
   /* ---------- tabs ---------- */
   nav.tabs{
@@ -255,10 +264,9 @@
   .shopItem{display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px dashed var(--line);font-size:.92rem}
   .shopItem:last-child{border-bottom:none}
   .shopItem .box{width:20px;height:20px;border:2px solid var(--line);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;color:#fff;cursor:pointer}
-  .shopItem .name{cursor:pointer}
+  .shopItem .name{cursor:pointer;flex:1}
   .shopItem.done .name{color:var(--muted)}
   .shopItem.done .box{background:var(--sage);border-color:var(--sage)}
-  .shopItem .qty{margin-left:auto;margin-right:8px;font-weight:700;color:var(--muted);font-size:.82rem}
   .buyBtn{border:1.5px solid var(--gold);background:transparent;color:#8a6d12;border-radius:8px;padding:5px 9px;font-family:'Karla';font-weight:700;font-size:.72rem;cursor:pointer;flex-shrink:0;white-space:nowrap}
   .buyBtn.active{background:var(--gold);color:#3a2f08}
   .delBtn{border:1.5px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:5px 9px;font-family:'Karla';font-weight:700;font-size:.72rem;cursor:pointer;flex-shrink:0}
@@ -332,9 +340,15 @@
 <div class="shell" id="appShell" style="display:none">
   <header class="appbar">
     <div class="logo">Nutri<em>Tino</em></div>
-    <button class="userChip" id="userChip" onclick="logout()" title="Cambiar de usuario">
-      <span class="dot" id="chipDot">V</span><span id="chipName">—</span>
-    </button>
+    <div class="chipWrap">
+      <button class="userChip" id="userChip" onclick="toggleUserMenu()" title="Mi perfil">
+        <span class="dot" id="chipDot">V</span><span id="chipName">—</span>
+      </button>
+      <div class="userMenu" id="userMenu">
+        <button onclick="openProfileEdit()">✎ Editar perfil</button>
+        <button onclick="logout()">↩ Cambiar de usuario</button>
+      </div>
+    </div>
   </header>
 
   <main>
@@ -483,6 +497,34 @@
   </div>
 </dialog>
 
+<dialog id="profileDlg">
+  <h3>Editar perfil</h3>
+  <div class="photoEdit">
+    <div class="photoPreview" id="photoPreview">?</div>
+    <div>
+      <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="onPhotoPick(event)">
+      <button class="btn ghost small" onclick="document.getElementById('photoInput').click()">Cambiar foto</button>
+      <button class="btn ghost small" id="photoRemoveBtn" onclick="removePhoto()" style="display:none">Quitar</button>
+    </div>
+  </div>
+  <div class="field" style="margin-bottom:10px"><label for="pfName">Nombre</label><input id="pfName" maxlength="24" placeholder="Tu nombre"></div>
+  <div class="field" style="margin-bottom:4px"><label for="pfPin">Nuevo PIN (4 dígitos)</label><input id="pfPin" type="password" inputmode="numeric" maxlength="4" placeholder="dejar vacío para no cambiarlo"></div>
+  <div class="err" id="pfErr"></div>
+  <div class="modalActions">
+    <button class="btn ghost" onclick="document.getElementById('profileDlg').close()">Cancelar</button>
+    <button class="btn" onclick="saveProfileEdit()">Guardar</button>
+  </div>
+</dialog>
+
+<dialog id="delDlg">
+  <h3>¿Quitar producto?</h3>
+  <p class="hint" style="margin-bottom:4px">Vas a quitar <b id="delProdName"></b> de la lista.</p>
+  <div class="modalActions">
+    <button class="btn ghost" onclick="delCtx=null;document.getElementById('delDlg').close()">Cancelar</button>
+    <button class="btn" style="background:var(--danger)" onclick="confirmDelItem()">Quitar</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -562,9 +604,17 @@ const PROFILES_META = {
 const GUEST_COLORS=['#6B5CA5','#C9722E','#3A6B8A','#8A3A5B','#5B7F2E','#A34848','#2E6E9E','#9E6C2E'];
 function isCouple(u){ return u==='valen'||u==='consti'; }
 function getMeta(u){
-  if(PROFILES_META[u]) return PROFILES_META[u];
-  const c=(STATE&&STATE.users)?STATE.users[u]:null;
-  return c?{name:c.name,letter:c.letter,color:c.color,height:c.height}:null;
+  const prof=(STATE&&(({...(STATE.profiles||{}),...(STATE.users||{})})[u]))||null;
+  let base;
+  if(PROFILES_META[u]) base={...PROFILES_META[u]};
+  else if(prof) base={name:prof.name,letter:prof.letter,color:prof.color,height:prof.height};
+  else return null;
+  // overrides editables por el usuario
+  if(prof){
+    if(prof.name) { base.name=prof.name; base.letter=(prof.name[0]||base.letter).toUpperCase(); }
+    if(prof.photo) base.photo=prof.photo;
+  }
+  return base;
 }
 function profOf(u){ return (STATE.profiles&&STATE.profiles[u])||(STATE.users&&STATE.users[u]); }
 function portionOf(u){ return isCouple(u)? u : ((STATE.users[u]&&STATE.users[u].portionSet)||'valen'); }
@@ -733,12 +783,16 @@ init().catch(()=>{ try{ renderLoginGrid(); }catch(e){} });
 function renderLoginGrid(){
   const g=document.getElementById('profileGrid'); if(!g||!STATE) return;
   const cards=[];
+  const av=(m)=> m.photo
+    ? `<div class="avatar photo" style="background-image:url(${m.photo})"></div>`
+    : `<div class="avatar" style="background:${m.color}">${m.letter}</div>`;
   for(const u of ['valen','consti']){
-    const m=PROFILES_META[u];
-    cards.push(`<button class="profileCard" data-user="${u}" onclick="pickProfile('${u}')"><div class="avatar" style="background:${m.color}">${m.letter}</div><h3>${m.name}</h3></button>`);
+    const m=getMeta(u);
+    cards.push(`<button class="profileCard" data-user="${u}" onclick="pickProfile('${u}')">${av(m)}<h3>${m.name}</h3></button>`);
   }
-  for(const [id,c] of Object.entries(STATE.users||{})){
-    cards.push(`<button class="profileCard" onclick="pickProfile('${id}')"><div class="avatar" style="background:${c.color}">${c.letter}</div><h3>${c.name}</h3></button>`);
+  for(const id of Object.keys(STATE.users||{})){
+    const m=getMeta(id);
+    cards.push(`<button class="profileCard" onclick="pickProfile('${id}')">${av(m)}<h3>${m.name}</h3></button>`);
   }
   cards.push(`<button class="profileCard create" onclick="openSignup()"><div class="avatar" style="background:var(--muted)">＋</div><h3>Crear usuario</h3></button>`);
   g.innerHTML=cards.join('');
@@ -820,11 +874,7 @@ function enter(u){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('appShell').style.display='flex';
   const meta=getMeta(u);
-  const chip=document.getElementById('userChip');
-  chip.dataset.user=u;
-  const dot=document.getElementById('chipDot');
-  dot.textContent=meta.letter; dot.style.background=meta.color;
-  document.getElementById('chipName').textContent=meta.name;
+  renderChip(meta,u);
   document.getElementById('wDate').value=new Date().toISOString().slice(0,10);
   renderAll();
   let lastTab='plan';
@@ -834,7 +884,89 @@ function enter(u){
   if(!['plan','compras','peso','stats'].includes(lastTab)) lastTab='plan';
   switchView(lastTab);
 }
+
+function renderChip(meta,u){
+  const chip=document.getElementById('userChip');
+  chip.dataset.user=u;
+  const dot=document.getElementById('chipDot');
+  if(meta.photo){ dot.classList.add('photo'); dot.style.backgroundImage=`url(${meta.photo})`; dot.textContent=''; }
+  else { dot.classList.remove('photo'); dot.style.backgroundImage=''; dot.textContent=meta.letter; dot.style.background=meta.color; }
+  document.getElementById('chipName').textContent=meta.name;
+}
+
+function toggleUserMenu(){
+  document.getElementById('userMenu').classList.toggle('open');
+}
+document.addEventListener('click',(e)=>{
+  const w=document.querySelector('.chipWrap');
+  if(w && !w.contains(e.target)) document.getElementById('userMenu').classList.remove('open');
+});
+
+/* ---- Editar perfil (nombre, foto, PIN) ---- */
+let _pendingPhoto=undefined; // undefined=sin cambio, null=quitar, string=nueva
+function openProfileEdit(){
+  document.getElementById('userMenu').classList.remove('open');
+  const meta=getMeta(currentUser);
+  _pendingPhoto=undefined;
+  document.getElementById('pfName').value=meta.name;
+  document.getElementById('pfPin').value='';
+  document.getElementById('pfErr').style.display='none';
+  const prev=document.getElementById('photoPreview');
+  if(meta.photo){ prev.style.backgroundImage=`url(${meta.photo})`; prev.textContent=''; document.getElementById('photoRemoveBtn').style.display=''; }
+  else { prev.style.backgroundImage=''; prev.style.background=meta.color; prev.textContent=meta.letter; document.getElementById('photoRemoveBtn').style.display='none'; }
+  document.getElementById('profileDlg').showModal();
+}
+
+function onPhotoPick(ev){
+  const file=ev.target.files&&ev.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    const img=new Image();
+    img.onload=()=>{
+      // comprimir a 256px máx, JPEG calidad 0.8 (para que entre en el estado sincronizado)
+      const max=256; let{width,height}=img;
+      if(width>height){ if(width>max){ height=height*max/width; width=max; } }
+      else { if(height>max){ width=width*max/height; height=max; } }
+      const cv=document.createElement('canvas'); cv.width=width; cv.height=height;
+      cv.getContext('2d').drawImage(img,0,0,width,height);
+      _pendingPhoto=cv.toDataURL('image/jpeg',0.8);
+      const prev=document.getElementById('photoPreview');
+      prev.style.backgroundImage=`url(${_pendingPhoto})`; prev.textContent='';
+      document.getElementById('photoRemoveBtn').style.display='';
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto(){
+  _pendingPhoto=null;
+  const meta=getMeta(currentUser);
+  const prev=document.getElementById('photoPreview');
+  prev.style.backgroundImage=''; prev.style.background=meta.color; prev.textContent=(document.getElementById('pfName').value[0]||meta.letter).toUpperCase();
+  document.getElementById('photoRemoveBtn').style.display='none';
+}
+
+async function saveProfileEdit(){
+  const err=(m)=>{ const e=document.getElementById('pfErr'); e.textContent=m; e.style.display='block'; };
+  const name=document.getElementById('pfName').value.trim();
+  const pin=document.getElementById('pfPin').value.trim();
+  if(!name) return err('Poné un nombre.');
+  if(pin && !/^\d{4}$/.test(pin)) return err('El PIN debe tener 4 dígitos.');
+  const prof=profOf(currentUser);
+  prof.name=name;
+  if(_pendingPhoto===null) delete prof.photo;
+  else if(typeof _pendingPhoto==='string') prof.photo=_pendingPhoto;
+  if(pin) prof.pin=pin;
+  await store.set(STATE);
+  document.getElementById('profileDlg').close();
+  renderChip(getMeta(currentUser),currentUser);
+  renderDay(); // por si el nombre aparece en el total del día
+  toast('Perfil actualizado ✓');
+}
+
 async function logout(){
+  document.getElementById('userMenu').classList.remove('open');
   await session.clear();
   currentUser=null; pendingUser=null;
   document.getElementById('appShell').style.display='none';
@@ -1289,8 +1421,24 @@ function _findItem(key){
   return {type:'item', obj:s.items[key], s};
 }
 
-// Elimina cualquier producto de la lista: custom se borra, base se oculta.
-async function delItem(key){
+// Pide confirmación antes de eliminar un producto.
+let delCtx=null;
+function delItem(key){
+  const s=shopState();
+  let name='este producto';
+  if(key[0]==='c'){ const i=parseInt(key.slice(1),10); if(s.custom[i]) name=s.custom[i].name; }
+  else {
+    const data=shoppingData();
+    const [ci,ii]=key.split('-').map(Number);
+    if(data[ci] && data[ci].items[ii]) name=data[ci].items[ii];
+  }
+  delCtx=key;
+  document.getElementById('delProdName').textContent=name;
+  document.getElementById('delDlg').showModal();
+}
+
+async function confirmDelItem(){
+  const key=delCtx; if(!key){ document.getElementById('delDlg').close(); return; }
   const s=shopState();
   if(key[0]==='c'){
     const i=parseInt(key.slice(1),10);
@@ -1300,6 +1448,8 @@ async function delItem(key){
     s.hidden[key]=1;
     delete s.items[key];
   }
+  delCtx=null;
+  document.getElementById('delDlg').close();
   await saveShopping();
   renderShopping();
   toast('Producto quitado');
