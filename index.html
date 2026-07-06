@@ -263,6 +263,11 @@
   #signupPanel h3{font-family:'Fraunces',serif;margin-bottom:4px}
   #signupPanel > p{font-size:.85rem;color:var(--muted);margin-bottom:14px}
   #signupPanel select{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper);font-family:'Karla';font-size:.92rem}
+  .bmiBox{background:var(--sage-soft);border-radius:10px;padding:10px 12px;font-size:.85rem;font-weight:700;color:var(--sage)}
+  .bmiBox .cat{font-weight:700}
+  .restrRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+  .restrOpt{display:flex;align-items:center;gap:6px;font-size:.83rem;font-weight:700;border:1.5px solid var(--line);border-radius:999px;padding:7px 12px;cursor:pointer;background:var(--paper)}
+  .restrOpt input{accent-color:var(--sage)}
 
   .swapNote{margin-top:8px;font-size:.82rem;background:#F3EEF7;border:1px solid #E0D5EC;color:#5a4b78;padding:8px 10px;border-radius:9px;line-height:1.5}
   .swapNote b{color:#3f3357}
@@ -325,20 +330,42 @@
 
   <div id="signupPanel">
     <h3>Crear tu usuario</h3>
-    <p>Tu perfil es privado: solo vos ves tus estadísticas y tus cambios de menú.</p>
+    <p>Con tus datos armamos un plan y una lista de compras a tu medida. Tu perfil es privado.</p>
     <div class="field" style="margin-bottom:10px"><label for="suName">Nombre</label><input id="suName" maxlength="20" placeholder="Ej: Mercedes"></div>
     <div class="formRow" style="margin-bottom:10px">
-      <div class="field"><label for="suHeight">Altura (cm)</label><input id="suHeight" type="number" min="120" max="230" placeholder="170"></div>
-      <div class="field"><label for="suTarget">Peso objetivo (kg, opcional)</label><input id="suTarget" type="number" step="0.1" placeholder="—"></div>
+      <div class="field"><label for="suBirth">Fecha de nacimiento</label><input id="suBirth" type="date"></div>
+    </div>
+    <div class="formRow" style="margin-bottom:6px">
+      <div class="field"><label for="suHeight">Altura (cm)</label><input id="suHeight" type="number" min="120" max="230" placeholder="170" oninput="updateBMI()"></div>
+      <div class="field"><label for="suWeight">Peso actual (kg)</label><input id="suWeight" type="number" step="0.1" placeholder="70" oninput="updateBMI()"></div>
+    </div>
+    <div id="bmiBox" class="bmiBox" style="display:none"></div>
+    <div class="field" style="margin:10px 0">
+      <label for="suObjective">Objetivo</label>
+      <select id="suObjective" onchange="updateObjDesc()">
+        <option value="bajar_grasa">Bajar grasa (déficit)</option>
+        <option value="ganar_musculo">Ganar músculo (volumen)</option>
+        <option value="recomposicion">Recomposición (bajar grasa + músculo)</option>
+        <option value="mantenimiento">Mantenimiento</option>
+        <option value="colesterol">Bajar colesterol</option>
+        <option value="diabetes">Controlar diabetes / glucemia</option>
+        <option value="maraton">Preparar una maratón</option>
+      </select>
+      <p class="hint" id="objDesc" style="margin-top:6px"></p>
     </div>
     <div class="field" style="margin-bottom:10px">
-      <label for="suPlan">Tipo de plan</label>
-      <select id="suPlan">
-        <option value="valen">Déficit — bajar de peso (~1500 kcal, porciones moderadas)</option>
-        <option value="consti">Recomposición — gym + proteína alta (~2100–2300 kcal)</option>
-      </select>
+      <label>Restricciones alimenticias (opcional)</label>
+      <div class="restrRow">
+        <label class="restrOpt"><input type="checkbox" value="sintacc"> Sin TACC</label>
+        <label class="restrOpt"><input type="checkbox" value="vegetariano"> Vegetariano</label>
+        <label class="restrOpt"><input type="checkbox" value="vegano"> Vegano</label>
+      </div>
     </div>
-    <div class="field" style="margin-bottom:4px"><label for="suPin">PIN (4 dígitos)</label><input id="suPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+    <div class="field" style="margin-bottom:10px"><label for="suTarget">Peso objetivo (kg, opcional)</label><input id="suTarget" type="number" step="0.1" placeholder="—"></div>
+    <div class="formRow" style="margin-bottom:4px">
+      <div class="field"><label for="suPin">PIN (4 dígitos)</label><input id="suPin" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+      <div class="field"><label for="suPin2">Repetir PIN</label><input id="suPin2" type="password" inputmode="numeric" maxlength="4" placeholder="••••"></div>
+    </div>
     <div class="err" id="suErr"></div>
     <div class="modalActions">
       <button class="btn ghost" onclick="closeSignup()">Cancelar</button>
@@ -414,8 +441,8 @@
       <button class="btn ghost" style="width:100%;margin-top:8px" onclick="resetShopping()">🛒 Vaciar lista de súper</button>
     </section>
 
-    <!-- PESO -->
-    <section id="view-peso" style="display:none">
+    <!-- PROGRESO (Peso + Evolución unificados) -->
+    <section id="view-stats" style="display:none">
       <h2 class="sectionTitle">Registrar peso</h2>
       <div class="card">
         <div class="formRow">
@@ -425,12 +452,7 @@
         </div>
         <p class="hint">Consejo: pesate 1 vez por semana, mismo día y horario (ideal: al despertar).</p>
       </div>
-      <h2 class="sectionTitle">Historial</h2>
-      <div class="card"><ul class="entryList" id="entryList"></ul></div>
-    </section>
 
-    <!-- EVOLUCIÓN -->
-    <section id="view-stats" style="display:none">
       <h2 class="sectionTitle">Evolución</h2>
       <div class="whoToggle">
         <button class="whoBtn" data-u="valen" onclick="setStatsUser('valen')">Valentina</button>
@@ -439,6 +461,10 @@
       <div class="statGrid" id="statGrid"></div>
       <div class="chartWrap"><canvas id="chart"></canvas></div>
       <div class="legendRow"><span class="lv">Valentina</span><span class="lc">Constantino</span></div>
+
+      <h2 class="sectionTitle" style="margin-top:18px">Historial</h2>
+      <div class="card"><ul class="entryList" id="entryList"></ul></div>
+
       <div style="margin-top:16px">
         <button class="btn ghost small" onclick="openSettings()">⚙ Ajustes (objetivo, días de gym, PIN)</button>
       </div>
@@ -448,8 +474,7 @@
   <nav class="tabs">
     <button class="tab active" data-view="plan" onclick="switchView('plan')">🍽 Plan</button>
     <button class="tab" data-view="compras" onclick="switchView('compras')">🛒 Compras</button>
-    <button class="tab" data-view="peso" onclick="switchView('peso')">⚖ Peso</button>
-    <button class="tab" data-view="stats" onclick="switchView('stats')">📈 Evolución</button>
+    <button class="tab" data-view="stats" onclick="switchView('stats')">📈 Progreso</button>
   </nav>
 </div>
 
@@ -606,6 +631,70 @@ const PLAN = [
 ];
 const SLOT_LABELS=['Desayuno','Media mañana','Almuerzo','Merienda','Cena'];
 const SLOT_TIMES=['7–9h','11h','13h','17h','21h'];
+
+/* ===== Objetivos nutricionales (Opción A: menús base por objetivo) ===== */
+const OBJECTIVES={
+  bajar_grasa:{label:'Bajar grasa (déficit)', kcalFactor:0.80, protein:'alta', desc:'Déficit calórico moderado con proteína alta para perder grasa conservando músculo.'},
+  ganar_musculo:{label:'Ganar músculo (volumen)', kcalFactor:1.15, protein:'alta', desc:'Superávit calórico con proteína alta y entrenamiento de fuerza.'},
+  recomposicion:{label:'Recomposición (bajar grasa + músculo)', kcalFactor:0.92, protein:'alta', desc:'Ligero déficit con proteína alta: perder grasa y ganar/mantener músculo.'},
+  mantenimiento:{label:'Mantenimiento', kcalFactor:1.0, protein:'media', desc:'Mantener peso y composición actual con alimentación equilibrada.'},
+  colesterol:{label:'Bajar colesterol', kcalFactor:0.95, protein:'media', desc:'Patrón mediterráneo: fibra, grasas buenas, pescado; menos grasa saturada.'},
+  diabetes:{label:'Controlar diabetes / glucemia', kcalFactor:0.95, protein:'media', desc:'Bajo índice glucémico: carbohidratos complejos, fibra, comidas distribuidas.'},
+  maraton:{label:'Preparar una maratón', kcalFactor:1.20, protein:'media', desc:'Alto rendimiento: carbohidratos suficientes para entrenar y recuperar.'}
+};
+const RESTRICTIONS={ sintacc:'Sin TACC', vegetariano:'Vegetariano', vegano:'Vegano' };
+
+/* Biblioteca de comidas por "tema" con variantes según restricción.
+   base = animal · veg = vegetariano · vgn = vegano · gf = nota sin tacc */
+function mealLib(objKey, restr){
+  const veg = restr.includes('vegetariano')||restr.includes('vegano');
+  const vegan = restr.includes('vegano');
+  const gf = restr.includes('sintacc');
+  const pan = gf ? 'pan sin TACC' : 'pan integral';
+  const pastas = gf ? 'fideos de arroz/legumbres' : 'fideos integrales';
+  const lowGI = objKey==='diabetes';
+  const chol = objKey==='colesterol';
+  // proteína principal según restricción
+  const P = vegan ? 'tofu/legumbres' : veg ? 'huevo/legumbres/queso' : 'pollo/carne magra/pescado';
+  const yogur = vegan ? 'yogur vegetal' : 'yogur natural';
+  const leche = vegan ? 'bebida vegetal' : 'leche';
+  const desayunoProt = vegan ? 'tofu revuelto' : veg ? 'huevos revueltos' : 'huevos revueltos';
+  return {
+   d0:{n:`${cap(desayunoProt)} con ${pan} y palta`, kv:300,kc:430, prep:`${cap(desayunoProt)} a fuego bajo. ${gf?'Usar pan sin TACC.':''} Palta en rodajas.`,
+     ing:[[cap(desayunoProt),'porción','porción'],[cap(pan),'1 reb.','2 reb.'],['Palta','¼','¼'],['Aceite de oliva','5 g','5 g']]},
+   d1:{n:`${cap(yogur)} con avena${gf?' sin TACC':''}, banana y chía`, kv:330,kc:470, prep:`Mezclar. ${vegan?'Usar yogur vegetal.':''}`,
+     ing:[[cap(yogur),'150 g','200 g'],[gf?'Avena sin TACC':'Avena','40 g','50 g'],['Banana','1','1'],['Chía','10 g','10 g']]},
+   mm:{n:'Fruta y frutos secos', kv:120,kc:200, prep:'Una fruta de estación + puñado de frutos secos.',
+     ing:[['Fruta','1','1'],['Frutos secos','15 g','25 g']]},
+   a0:{n:`Bowl de ${P} con ${lowGI?'quinoa':'arroz integral'} y verduras`, kv:480,kc:680, prep:`${cap(P)} + ${lowGI?'quinoa':'arroz integral'} + verduras salteadas. Ensalada: hojas verdes, tomate y zanahoria.`,
+     ing:[[cap(P),'porción','porción grande'],[lowGI?'Quinoa':'Arroz integral','100 g','180 g'],['Verduras','200 g','250 g'],['Ensalada (hojas verdes, tomate, zanahoria)','plato','plato'],['Aceite de oliva','10 g','10 g']]},
+   a1:{n:`Ensalada de ${vegan?'garbanzos':'legumbres'} con ${veg?'huevo/tofu':'atún'} y verduras`, kv:430,kc:600, prep:`${chol?'Ideal para colesterol (fibra + legumbres).':''} Ensalada: tomate, cebolla, morrón, hojas verdes.`,
+     ing:[[vegan?'Garbanzos':'Lentejas','120 g','200 g'],[veg?(vegan?'Tofu':'Huevo duro'):'Atún al natural','porción','porción'],['Ensalada (tomate, cebolla, morrón, hojas verdes)','plato','plato'],['Aceite de oliva','10 g','10 g']]},
+   m0:{n:`${cap(yogur)} o ${pan} con ${vegan?'hummus':'queso/ricota'}`, kv:180,kc:290, prep:'Merienda liviana con proteína.',
+     ing:[[vegan?'Hummus':'Ricota o queso','porción','porción'],[cap(pan),'1 reb.','1 reb.']]},
+   c0:{n:`${veg?(vegan?'Salteado de tofu':'Tortilla de vegetales'):'Pescado al horno'} con verduras`, kv:360,kc:500, prep:`${chol?'Pescado azul aporta omega-3.':''} Verduras al vapor o al horno + ensalada verde.`,
+     ing:[[veg?(vegan?'Tofu':'Huevos'):'Merluza/salmón','porción','porción'],['Verduras','200 g','250 g'],['Ensalada verde (hojas, pepino)','plato','plato'],['Aceite de oliva','10 g','10 g']]},
+   c1:{n:`${cap(pastas)} con ${vegan?'salsa de vegetales':veg?'salsa y queso':'bolognesa magra'}`, kv:470,kc:650, prep:`${lowGI?'Cocción al dente (mejor índice glucémico).':''} Ensalada de rúcula y tomate.`,
+     ing:[[cap(pastas),'100 g','180 g'],[vegan?'Salsa de vegetales':veg?'Salsa + queso':'Carne picada especial','porción','porción'],['Ensalada (rúcula, tomate)','plato','plato']]},
+  };
+}
+function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+// Estructura semanal genérica para usuarios nuevos (5 comidas, se repite con variedad)
+function buildUserPlan(objKey, restr){
+  const L=mealLib(objKey,restr);
+  const carbBig = (objKey==='maraton'||objKey==='ganar_musculo'); // más carbos
+  const days=[
+    ['d0','mm','a0','m0','c0'],
+    ['d1','mm','a1','m0','c1'],
+    ['d0','mm','a0','m0','c1'],
+    ['d1','mm','a1','m0','c0'],
+    ['d0','mm','a0','m0','c1'],
+    ['d1','mm','a1','m0','c0'],
+    ['d0','mm','a1','m0','c0'],
+  ];
+  return {lib:L, days};
+}
 
 const PROFILES_META = {
   valen:{name:'Valentina', letter:'V', color:'#B04A6E', height:1.61},
@@ -813,37 +902,83 @@ function openSignup(){
   document.getElementById('pinPanel').classList.remove('open');
   document.getElementById('signupPanel').classList.add('open');
   document.getElementById('suErr').style.display='none';
+  updateObjDesc();
   document.getElementById('suName').focus();
 }
 function closeSignup(){ document.getElementById('signupPanel').classList.remove('open'); }
 
+function bmiCategory(bmi){
+  if(bmi<18.5) return {cat:'bajo peso', color:'#C9722E'};
+  if(bmi<25) return {cat:'peso normal', color:'#5F8957'};
+  if(bmi<30) return {cat:'sobrepeso', color:'#C9A227'};
+  return {cat:'obesidad', color:'#B23B3B'};
+}
+function updateBMI(){
+  const h=parseFloat(document.getElementById('suHeight').value)/100;
+  const w=parseFloat(document.getElementById('suWeight').value);
+  const box=document.getElementById('bmiBox');
+  if(h>0 && w>0){
+    const bmi=w/(h*h);
+    const c=bmiCategory(bmi);
+    box.style.display='block';
+    box.innerHTML=`IMC actual: <span class="num">${bmi.toFixed(1)}</span> · <span class="cat" style="color:${c.color}">${c.cat}</span>`;
+  } else box.style.display='none';
+}
+function updateObjDesc(){
+  const k=document.getElementById('suObjective').value;
+  document.getElementById('objDesc').textContent = OBJECTIVES[k]?OBJECTIVES[k].desc:'';
+}
+
 function slug(name){
   return name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'').slice(0,16)||'user';
+}
+function ageFromBirth(iso){
+  if(!iso) return null;
+  const b=new Date(iso), n=new Date();
+  let a=n.getFullYear()-b.getFullYear();
+  const m=n.getMonth()-b.getMonth();
+  if(m<0 || (m===0 && n.getDate()<b.getDate())) a--;
+  return a;
 }
 
 async function createUser(){
   const name=document.getElementById('suName').value.trim();
+  const birth=document.getElementById('suBirth').value;
   const hCm=parseFloat(document.getElementById('suHeight').value);
+  const weight=parseFloat(document.getElementById('suWeight').value);
+  const objective=document.getElementById('suObjective').value;
+  const restrictions=[...document.querySelectorAll('.restrRow input:checked')].map(c=>c.value);
   const target=parseFloat(document.getElementById('suTarget').value);
-  const portionSet=document.getElementById('suPlan').value;
   const pin=document.getElementById('suPin').value.trim();
+  const pin2=document.getElementById('suPin2').value.trim();
   const err=(m)=>{ const e=document.getElementById('suErr'); e.textContent=m; e.style.display='block'; };
   if(!name) return err('Poné un nombre.');
+  if(!birth) return err('Ingresá tu fecha de nacimiento.');
+  const age=ageFromBirth(birth);
+  if(age===null || age<10 || age>100) return err('Revisá la fecha de nacimiento.');
   if(!hCm || hCm<120 || hCm>230) return err('Altura en cm (ej: 170).');
+  if(!weight || weight<30 || weight>250) return err('Peso en kg (ej: 70).');
   if(!/^\d{4}$/.test(pin)) return err('El PIN debe tener 4 dígitos.');
+  if(pin!==pin2) return err('Los dos PIN no coinciden. Reingresalos.');
+
   let id=slug(name);
   if(profOf(id)) id=id+Math.floor(Math.random()*90+10);
   const n=Object.keys(STATE.users).length;
+  const plan=buildUserPlan(objective, restrictions);
   STATE.users[id]={
     name, letter:name[0].toUpperCase(), color:GUEST_COLORS[n%GUEST_COLORS.length],
-    height:+(hCm/100).toFixed(2), pin, target:isNaN(target)?null:target,
-    portionSet, gymDays: portionSet==='consti'?[0,3,5]:[]
+    height:+(hCm/100).toFixed(2), birth, age, weight,
+    objective, restrictions, target:isNaN(target)?null:target,
+    pin, plan,
+    // porciones: objetivos de superávit usan columna "grande"
+    portionSet: (objective==='ganar_musculo'||objective==='maraton')?'consti':'valen'
   };
-  STATE.weights[id]=[]; STATE.adherence[id]={};
+  STATE.weights[id]=[{d:new Date().toISOString().slice(0,10), w:weight}]; // punto de partida
+  STATE.adherence[id]={};
   await store.set(STATE);
   await session.set({user:id});
   closeSignup(); renderLoginGrid();
-  toast(`¡Bienvenido/a, ${name}!`);
+  toast(`¡Bienvenido/a, ${name}! Armamos tu plan.`);
   enter(id);
 }
 
@@ -892,7 +1027,8 @@ function enter(u){
   // preferir el tab guardado en STATE (sincroniza vía backend); fallback a localStorage
   if(STATE.lastTab) lastTab=STATE.lastTab;
   else { try{ lastTab=localStorage.getItem('nutritino:lastTab')||'plan'; }catch(e){} }
-  if(!['plan','compras','peso','stats'].includes(lastTab)) lastTab='plan';
+  if(lastTab==='peso') lastTab='stats';
+  if(!['plan','compras','stats'].includes(lastTab)) lastTab='plan';
   switchView(lastTab);
 }
 
@@ -991,15 +1127,14 @@ async function logout(){
 
 /* =================== TABS =================== */
 function switchView(v){
-  ['plan','compras','peso','stats'].forEach(x=>{
+  if(v==='peso') v='stats'; // compat: peso quedó unificado en progreso
+  ['plan','compras','stats'].forEach(x=>{
     document.getElementById('view-'+x).style.display = x===v?'block':'none';
-    document.querySelector(`.tab[data-view="${x}"]`).classList.toggle('active',x===v);
+    const tb=document.querySelector(`.tab[data-view="${x}"]`); if(tb) tb.classList.toggle('active',x===v);
   });
   if(v==='compras'){ renderShopping(); pullShopping(); }
-  if(v==='peso') renderEntries();
-  if(v==='stats') renderStats();
+  if(v==='stats'){ renderEntries(); renderStats(); }
   try{ localStorage.setItem('nutritino:lastTab', v); }catch(e){}
-  // persistir también en STATE (se sincroniza aunque Safari bloquee localStorage)
   if(STATE && STATE.lastTab!==v){ STATE.lastTab=v; if(currentUser) store.set(STATE); }
 }
 
@@ -1060,19 +1195,31 @@ function weekMap(u){
   return STATE.weekOverrides[k];
 }
 
+// Comida base (sin overrides) para un usuario: la pareja usa PLAN/MEALS; los invitados su plan generado.
+function basePlanDay(u, dayIdx){
+  if(isCouple(u)) return {slots:PLAN[dayIdx].slots, lib:MEALS, meta:PLAN[dayIdx]};
+  const prof=profOf(u);
+  if(prof && prof.plan && prof.plan.days){
+    return {slots:prof.plan.days[dayIdx], lib:prof.plan.lib, meta:{}};
+  }
+  // fallback: si un invitado no tiene plan, usar el compartido
+  return {slots:PLAN[dayIdx].slots, lib:MEALS, meta:PLAN[dayIdx]};
+}
+function baseMeal(u, dayIdx, slotIdx){
+  const bp=basePlanDay(u,dayIdx);
+  return bp.lib[bp.slots[slotIdx]] || MEALS[PLAN[dayIdx].slots[slotIdx]];
+}
+
 // Resuelve la comida para un día de semana + slot, según la semana visible (weekOffset) y usuario.
 function mealAt(dayIdx,slotIdx,u){
   const slotKey=dayIdx+'-'+slotIdx;
   const wStart=weekStartISO(weekOffset);
-  // 1) override puntual de esta semana
   const wk=weekMap(u)[wStart+'|'+slotKey];
   if(wk) return wk;
-  // 2) override hacia adelante vigente en esta semana (el más reciente cuyo 'from' <= inicio de esta semana... o de este día)
   const dayISO=weekDates(weekOffset)[dayIdx];
   const fwd=fwdMap(u)[slotKey];
   if(fwd && fwd.from && fwd.from<=dayISO) return fwd.meal;
-  // 3) plan base
-  return MEALS[PLAN[dayIdx].slots[slotIdx]];
+  return baseMeal(u,dayIdx,slotIdx);
 }
 
 // ¿La comida mostrada viene de un override (para mostrar ✎ y ↺)?
@@ -1097,30 +1244,32 @@ function dateForDay(i){
 }
 
 function renderDay(){
-  const day=PLAN[selectedDay];
-  document.getElementById('dayTitle').textContent=DAY_NAMES[selectedDay];
   const couple=isCouple(currentUser);
   const pset=portionOf(currentUser);
+  const bp=basePlanDay(currentUser,selectedDay);
+  const slots=bp.slots;
+  const day=couple?PLAN[selectedDay]:{slots};
+  document.getElementById('dayTitle').textContent=DAY_NAMES[selectedDay];
 
   const badges=[];
   if(couple){
     if(day.office.consti) badges.push('<span class="badge">🏢 Constantino oficina</span>');
     if(day.office.valen) badges.push('<span class="badge">🏢 Valentina oficina</span>');
-  }
-  if(day.fish) badges.push('<span class="badge fish">🐟 Pescado</span>');
-  if(day.batch) badges.push('<span class="badge batch">🍳 Batch cooking</span>');
-  if(pset==='consti'){
-    badges.push(isGymDay(selectedDay,currentUser)
-      ? '<span class="badge gym">🏋️ Día de gym · carbos completos</span>'
-      : '<span class="badge gym">😴 Descanso · ½ carbos</span>');
-  } else if(couple){
+    if(day.fish) badges.push('<span class="badge fish">🐟 Pescado</span>');
+    if(day.batch) badges.push('<span class="badge batch">🍳 Batch cooking</span>');
     badges.push(isGymDay(selectedDay,'consti')
       ? '<span class="badge gym">🏋️ Gym Constantino · carbos completos</span>'
       : '<span class="badge gym">😴 Descanso Constantino · ½ carbos</span>');
+  } else {
+    const prof=profOf(currentUser);
+    if(prof && prof.objective && OBJECTIVES[prof.objective]){
+      badges.push(`<span class="badge">🎯 ${OBJECTIVES[prof.objective].label}</span>`);
+    }
+    (prof&&prof.restrictions||[]).forEach(rk=>{ if(RESTRICTIONS[rk]) badges.push(`<span class="badge batch">${RESTRICTIONS[rk]}</span>`); });
   }
   document.getElementById('dayBadges').innerHTML=badges.join('');
 
-  const total=day.slots.reduce((s,_,i)=>s+kcalOf(mealAt(selectedDay,i,currentUser),currentUser,selectedDay),0);
+  const total=slots.reduce((s,_,i)=>s+kcalOf(mealAt(selectedDay,i,currentUser),currentUser,selectedDay),0);
   const dateISO=dateForDay(selectedDay);
   const isFuture = dateISO > new Date().toISOString().slice(0,10);
   const adh=(STATE.adherence[currentUser]||{})[dateISO]||{};
@@ -1138,11 +1287,11 @@ function renderDay(){
     ticket.insertAdjacentHTML('beforeend', `<div class="readonlyNote">${note}</div>`);
   }
 
-  day.slots.forEach((_,idx)=>{
+  slots.forEach((_,idx)=>{
     const m=mealAt(selectedDay,idx,currentUser);
     const ov=overrideInfo(selectedDay,idx,currentUser);
     const kcal=kcalOf(m,currentUser,selectedDay);
-    const time = (idx===2 && day.vianda && couple) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
+    const time = (idx===2 && couple && day.vianda) ? `${SLOT_TIMES[idx]} · ${day.vianda}` : SLOT_TIMES[idx];
 
     let tableHead, rows;
     if(couple){
@@ -1563,13 +1712,13 @@ async function addProduct(){
 const chatHistory={valen:[],consti:[]};
 
 function planSnapshot(){
-  const days=PLAN.map((d,di)=>({
-    dia:DAY_NAMES[di],
-    comidas:d.slots.map((_,si)=>{
-      const m=mealAt(di,si,currentUser);
-      return {slot:si, nombre:m.n, kcalV:m.kv, kcalC:m.kc};
-    })
-  }));
+  const days=[0,1,2,3,4,5,6].map(di=>{
+    const bp=basePlanDay(currentUser,di);
+    return {
+      dia:DAY_NAMES[di],
+      comidas:bp.slots.map((_,si)=>{ const m=mealAt(di,si,currentUser); return {slot:si, nombre:m.n, kcal:m.kc}; })
+    };
+  });
   return JSON.stringify(days);
 }
 
@@ -1582,20 +1731,24 @@ function chefSystem(){
 - Constantino: 1.88 m, recomposición corporal (bajar grasa, mantener músculo), gym 3x/semana, toma creatina (~2100-2300 kcal/día, proteína ~140-160 g/día). Días de gym: carbohidratos completos; descanso: mitad.
 Usuario que te escribe ahora: ${meta.name}. Tus cambios se aplican al menú compartido de la pareja.`;
   } else {
-    ctx=`una app de plan alimentario. Usuario: ${meta.name}, ${meta.height} m${prof.target?`, objetivo ${prof.target} kg`:''}. Sigue el plan base con porciones tipo ${pset==='valen'?'déficit (~1500 kcal/día, proteína ~100-115 g)':'recomposición (~2100-2300 kcal/día, proteína alta, carbos completos días de gym y mitad los de descanso)'}. Tus cambios solo afectan SU menú personal.`;
+    const obj=(prof.objective&&OBJECTIVES[prof.objective])?OBJECTIVES[prof.objective].label:'alimentación saludable';
+    const objDesc=(prof.objective&&OBJECTIVES[prof.objective])?OBJECTIVES[prof.objective].desc:'';
+    const restr=(prof.restrictions&&prof.restrictions.length)?prof.restrictions.map(r=>RESTRICTIONS[r]||r).join(', '):'ninguna';
+    ctx=`una app de plan alimentario de Buenos Aires. Usuario: ${meta.name}, ${prof.age?prof.age+' años, ':''}${meta.height} m, ${prof.weight?prof.weight+' kg, ':''}${prof.target?'objetivo '+prof.target+' kg, ':''}objetivo nutricional: ${obj} (${objDesc}). Restricciones alimenticias: ${restr} — RESPETALAS SIEMPRE en cualquier reemplazo. Tus cambios solo afectan SU menú personal.`;
   }
   return `Sos el chef-nutricionista de NutriTino, ${ctx}
-Principios del plan: proteína en cada comida, mitad del plato verduras, comida real accesible en supermercados/verdulerías de Buenos Aires, ultraprocesados al mínimo, pescado 2-3x/semana, desayuno fijo (huevos revueltos con tostadas). Los slots son: 0=Desayuno, 1=Media mañana, 2=Almuerzo, 3=Merienda, 4=Cena. Los días: 0=Lunes ... 6=Domingo.
+Principios: proteína en cada comida, mitad del plato verduras, comida real accesible en supermercados/verdulerías de Buenos Aires, ultraprocesados al mínimo. Los slots son: 0=Desayuno, 1=Media mañana, 2=Almuerzo, 3=Merienda, 4=Cena. Los días: 0=Lunes ... 6=Domingo.
 Plan actual: ${planSnapshot()}
 
 RESPONDÉ SOLO CON JSON VÁLIDO, sin markdown ni backticks, con esta forma exacta:
-{"reply":"tu respuesta en español rioplatense, breve y concreta","changes":[{"day":0,"slot":4,"meal":{"n":"Nombre del plato","kv":350,"kc":500,"prep":"preparación en 1-2 líneas","ing":[["Ingrediente","cant Valentina","cant Constantino"]]}}]}
+{"reply":"tu respuesta en español rioplatense, breve y concreta","changes":[{"day":0,"slot":4,"meal":{"n":"Nombre del plato","kv":350,"kc":500,"prep":"preparación en 1-2 líneas","ing":[["Ingrediente","cantidad 1","cantidad 2"]]}}]}
 
 Reglas:
 - "changes" solo si el usuario pide un cambio concreto de comida; si no, lista vacía.
-- Al reemplazar una comida, mantené kcal similares (±15%) a la que reemplazás, misma lógica de proteína, e ingredientes con gramos.
-- "kc" puede ser número o [kcalDíaGym, kcalDíaDescanso] si el plato lleva carbohidratos variables.
-- Máximo 3 changes por respuesta. No cambies el desayuno salvo pedido explícito (es fijo a propósito).\n- Siempre que una comida incluya ensalada, detallá sus ingredientes concretos (ej: 'Ensalada (lechuga, tomate, zanahoria)') tanto en el nombre del ingrediente como en la preparación. Nunca pongas solo 'ensalada' o 'ensalada mixta' sin aclarar qué lleva.`;
+- Al reemplazar una comida, mantené kcal similares (±15%) a la que reemplazás y respetá las restricciones alimenticias del usuario.
+- Para la pareja, "kv"=Valentina y "kc"=Constantino; para un usuario individual poné el mismo valor en ambos.
+- Máximo 3 changes por respuesta.
+- Siempre que una comida incluya ensalada, detallá sus ingredientes concretos (ej: 'Ensalada (lechuga, tomate, zanahoria)'). Nunca pongas solo 'ensalada'.`;
 }
 
 function toggleChef(){
